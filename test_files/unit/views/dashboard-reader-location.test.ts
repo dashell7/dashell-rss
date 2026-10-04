@@ -9,6 +9,7 @@ import {
 } from "../../../src/types/types";
 import { ReaderView } from "../../../src/views/reader-view";
 import { RssDashboardView } from "../../../src/views/dashboard-view";
+import type { DashellLearning } from "../../../src/dashell/controller";
 
 vi.mock("../../../src/utils/platform-utils", () => ({
   robustFetch: vi.fn(),
@@ -99,6 +100,7 @@ type TestDashboardView = {
     updates: Partial<FeedItem>,
     shouldRerender?: boolean,
   ) => Promise<void>;
+  plugin: { dashellLearning?: DashellLearning };
   articleList: {
     setSelectedArticle: ReturnType<typeof vi.fn>;
     scheduleCardTopAnchorOnResize: ReturnType<typeof vi.fn>;
@@ -200,6 +202,67 @@ describe("Dashboard reader location", () => {
     installObsidianDomPolyfills();
     document.body.empty();
     Platform.isMobile = false;
+  });
+
+  it.each([
+    { mediaType: "podcast", audioUrl: "https://example.com/episode.mp3" },
+    { mediaType: "video", videoId: "dQw4w9WgXcQ" },
+    { mediaType: "video", videoUrl: "https://example.com/episode.mp4" },
+    { link: "https://example.com/news/videos/story" },
+  ] satisfies Partial<FeedItem>[])("keeps media %j in the RSS preview when Dashell learning is enabled", async media => {
+    const settings = cloneSettings();
+    settings.readerViewLocation = "right-sidebar";
+    const feed = makeFeed("https://example.com/feed", [media]);
+    settings.feeds = [feed];
+    const target = createReaderLeaf(new App(), "preview");
+    const { view } = await createDashboardView(settings, {
+      getLeavesOfType: vi.fn(() => []), getRightLeaf: vi.fn(() => target),
+      revealLeaf: vi.fn(async () => {}),
+    });
+    const open = vi.fn(async () => undefined);
+    view.plugin.dashellLearning = { open, act: async (work: () => Promise<void>) => work() } as unknown as DashellLearning;
+    await view.handleArticleClick(feed.items[0]);
+    expect(open).not.toHaveBeenCalled();
+    expect(target.setViewState).toHaveBeenCalledWith({ type: "rss-reader-view", active: true });
+    expect(target.view.displayItem).toHaveBeenCalledWith(feed.items[0], expect.any(Array));
+    expect(feed.items[0].saved).not.toBe(true);
+  });
+
+  it("keeps the remembered inline preview for podcasts with Dashell learning enabled", async () => {
+    const settings = cloneSettings();
+    settings.readerViewLocation = "inline";
+    const feed = makeFeed("https://example.com/feed", [{ mediaType: "podcast" }]);
+    settings.feeds = [feed];
+    const { view } = await createDashboardView(settings);
+    const open = vi.fn(async () => undefined);
+    view.plugin.dashellLearning = { open, act: async (work: () => Promise<void>) => work() } as unknown as DashellLearning;
+    await view.handleArticleClick(feed.items[0]);
+    expect(view.inlineArticle).toBe(feed.items[0]);
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it("invalidates a preparing article when the user switches to a media preview", async () => {
+    const settings = cloneSettings();
+    settings.readerViewLocation = "inline";
+    const feed = makeFeed("https://example.com/feed", [{}, { mediaType: "podcast" }]);
+    settings.feeds = [feed];
+    const { view } = await createDashboardView(settings);
+    let isCurrent!: () => boolean;
+    let finish!: () => void;
+    view.plugin.dashellLearning = {
+      act: async (work: () => Promise<void>) => work(),
+      open: vi.fn((_item, _content, current) => {
+        isCurrent = current;
+        return new Promise(resolve => { finish = () => resolve(undefined); });
+      }),
+    } as unknown as DashellLearning;
+    const pending = view.handleArticleClick(feed.items[0]);
+    await vi.waitFor(() => expect(isCurrent).toBeTypeOf("function"));
+    expect(isCurrent()).toBe(true);
+    await view.handleArticleClick(feed.items[1]);
+    expect(isCurrent()).toBe(false);
+    finish();
+    await pending;
   });
 
   it("opens article clicks in the main split when readerViewLocation is main", async () => {

@@ -1689,6 +1689,15 @@ class ModalStub {
   }
 }
 
+// Native fuzzy matching is exercised in the host; tests only need the modal boundary.
+class FuzzySuggestModalStub<T> extends ModalStub {
+  inputEl = createDiv().createEl("input", { type: "search" });
+  setPlaceholder(placeholder: string): void { this.inputEl.placeholder = placeholder; }
+  getItems(): T[] { return []; }
+  getItemText(_item: T): string { return ""; }
+  onChooseItem(_item: T): void {}
+}
+
 class AbstractInputSuggestStub<T> {
   app: AppStub;
   protected inputEl: HTMLInputElement;
@@ -1805,6 +1814,7 @@ export const TextComponent =
   TextComponentStub as unknown as typeof ObsidianApi.TextComponent;
 export type Modal = ObsidianApi.Modal;
 export const Modal = ModalStub as unknown as typeof ObsidianApi.Modal;
+export const FuzzySuggestModal = FuzzySuggestModalStub as unknown as typeof ObsidianApi.FuzzySuggestModal;
 export type AbstractInputSuggest<T> = ObsidianApi.AbstractInputSuggest<T>;
 export const AbstractInputSuggest =
   AbstractInputSuggestStub as unknown as typeof ObsidianApi.AbstractInputSuggest;

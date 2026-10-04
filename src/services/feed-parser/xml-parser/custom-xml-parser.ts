@@ -1,4 +1,5 @@
 import type { ParsedFeed } from "../types.js";
+import { attachMetadata } from '../../../dashell/feed-metadata';
 import { isLatexFormulaImage } from "../../../utils/image-url-utils.js";
 import { hostMatches } from "../../../utils/url-host.js";
 import {
@@ -491,6 +492,10 @@ export class CustomXMLParser {
   }
 
   parseString(xmlString: string): ParsedFeed {
+    return attachMetadata(this.parseRaw(xmlString), xmlString);
+  }
+
+  private parseRaw(xmlString: string): ParsedFeed {
     try {
       if (xmlString.trim().startsWith("{")) {
         return parseJSON(xmlString, {

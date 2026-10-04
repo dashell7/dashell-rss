@@ -3,6 +3,7 @@
 ### Features
 
 - Sidebar search now says when nothing matched instead of leaving the sidebar blank. A search with no matching feeds or folders shows **0 results** and **No matches found.**, as Obsidian's own search does, and the message clears when the query changes or the search is cleared or closed. [GH Issue #678](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/678)
+- Local Dashell candidate: preserves the RSS Dashboard home and feed filters. Article cards save once and open directly in Dashell Reader; repeat opens reuse local files and resume the last supplied language version. Podcasts and videos retain RSS Dashboard's native previews. Reader owns reading appearance, lookup and AI configuration. See [implementation and scope](docs/DASHELL-IMPLEMENTATION.md) and [validation](docs/DASHELL-VERIFICATION-2026-10-04.md).
 
 ### Fixes
 - Fixed dashboard article star buttons appearing circular; their backgrounds now have the same rounded rectangle corners as neighboring action icons.
@@ -29,6 +30,12 @@
 - Fixed the user preferences import notice claiming feeds were imported when the file only contained folders or tags. The notice now names the collections the file included. [GH Issue #464](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/464)
 - Fixed vertical misalignment among Reader toolbar icons and removed the dashboard-style circle from the Tags action. [GH Issue #680](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/680)
 - Fixed the navigation drawer keeping every closed copy of itself, with its full feed list and the previous article list, in memory. On desktop windows narrower than 1200px each folder change leaked about 2,000 elements, which slowed Obsidian down over a long session and could end in an out-of-memory crash. [GH Issue #664](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/664)
+- Dashell RSS now uses its own plugin ID and copies existing RSS Dashboard settings, feed shards, and learning records on first launch. Existing files stay in place for rollback, and plugin-default storage paths are redirected to the Dashell folder.
+- The customized plugin identifies its maintainer as dashell and links to dashell7's GitHub. The About page separates Dashell maintenance from upstream attribution and support.
+- Articles saved for Dashell Reader turn body hyperlinks into ordinary text so linked words support hover and click lookup. Original, translated and rewritten versions retain text formatting, images and their source URL; RSS previews keep their links.
+- Podcast and video cards use the original RSS preview and media players, without an automatic download or Dashell Player requirement. Media preview location is configurable again; switching from a preparing article to media prevents the late article from taking over.
+- Saved Dashell articles and their automatic reading notes use article titles instead of generic `material` filenames. Supplied translations and rewrites retain distinct title-based filenames and version switching.
+- Localized the plugin settings tabs in Simplified Chinese, including dynamic control labels and tooltips. Internal tab IDs, saved values, paths, and user-defined tags, highlights, and template names remain unchanged.
 - Fixed editing a feed to another subscribed feed's URL creating a duplicate subscription. The URL change is now refused without changing either feed. Existing duplicates can still be edited when their URL stays the same. [GH Issue #554](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/554)
 - Fixed the reader removing story text or other media along with a duplicate lead image when both were wrapped in a link or figure. [GH Issue #629](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/629)
 - Fixed **Use site icons/favicons for RSS feeds** turning itself back on after a settings reload. Loading unchanged settings no longer saves them on every startup. [GH Issue #564](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/564)

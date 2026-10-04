@@ -40,8 +40,8 @@ class ClearImageCacheConfirmModal extends Modal {
         button.setButtonText("Clear image cache");
         settingsUiCompatibility.markDestructive(button);
         button.onClick(() => {
-            this.confirmed = true;
-            this.close();
+          this.confirmed = true;
+          this.close();
         });
       });
   }
@@ -238,21 +238,21 @@ export function renderDisplaySettingsTab(
     plugin.onImageCacheChanged?.(refreshCacheSize) ?? (() => {});
 
   clearImageCacheSetting.addButton((button) =>
-      button.setButtonText("Clear image cache").onClick(async () => {
-        const modal = new ClearImageCacheConfirmModal(plugin.app);
-        const confirmation = modal.waitForClose();
-        modal.open();
-        if (!(await confirmation)) return;
+    button.setButtonText("Clear image cache").onClick(async () => {
+      const modal = new ClearImageCacheConfirmModal(plugin.app);
+      const confirmation = modal.waitForClose();
+      modal.open();
+      if (!(await confirmation)) return;
 
-        const result = await plugin.clearImageCache();
-        new Notice(
-          result.failed === 0
-            ? "Image cache cleared."
-            : `Cleared ${result.cleared} cached images; ${result.failed} could not be removed.`,
-        );
-        onRefresh();
-      }),
-    );
+      const result = await plugin.clearImageCache();
+      new Notice(
+        result.failed === 0
+          ? "Image cache cleared."
+          : `Cleared ${result.cleared} cached images; ${result.failed} could not be removed.`,
+      );
+      onRefresh();
+    }),
+  );
 
   new Setting(containerEl)
     .setName("Show summary")
@@ -416,7 +416,9 @@ export function renderDisplaySettingsTab(
 
   new Setting(containerEl)
     .setName("Pagination position")
-    .setDesc("Choose whether dashboard pagination appears above or below the articles")
+    .setDesc(
+      "Choose whether dashboard pagination appears above or below the articles",
+    )
     .addDropdown((dropdown) =>
       dropdown
         .addOption("bottom", "Bottom")
@@ -424,8 +426,7 @@ export function renderDisplaySettingsTab(
         .setValue(plugin.settings.display.paginationPosition ?? "bottom")
         .onChange(async (value) => {
           plugin.settings.display.paginationPosition = value as
-            | "top"
-            | "bottom";
+            "top" | "bottom";
           await plugin.saveSettings();
           const view = await plugin.getActiveDashboardView();
           if (view) {
@@ -461,8 +462,7 @@ export function renderDisplaySettingsTab(
         .setValue(plugin.settings.display.articleDateStyle ?? "relative")
         .onChange(async (value: string) => {
           plugin.settings.display.articleDateStyle = value as
-            | "relative"
-            | "absolute";
+            "relative" | "absolute";
           await plugin.saveSettings();
           const view = await plugin.getActiveDashboardView();
           if (view) {
@@ -952,133 +952,132 @@ export function renderDisplaySettingsTab(
     });
 
   // ── Reader ───────────────────────────────────────────────────────────────
-  const readerHeading = new Setting(containerEl).setName("Reader").setHeading();
-  readerHeading.settingEl.dataset.rssSettingsSection = "reader";
-  if (targetSection === "Reader") {
-    window.setTimeout(() => {
-      readerHeading.settingEl.scrollIntoView({
-        block: "center",
-        behavior: "auto",
-      });
-    }, 0);
+  if (!plugin.dashellLearning) {
+    const readerHeading = new Setting(containerEl)
+      .setName("Reader")
+      .setHeading();
+    readerHeading.settingEl.dataset.rssSettingsSection = "reader";
+    if (targetSection === "Reader") {
+      window.setTimeout(() => {
+        readerHeading.settingEl.scrollIntoView({
+          block: "center",
+          behavior: "auto",
+        });
+      }, 0);
+    }
+
+    new Setting(containerEl)
+      .setName("Font size")
+      .setDesc("Choose the reader body font size preset")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("80", "80%")
+          .addOption("90", "90%")
+          .addOption("100", "100%")
+          .addOption("110", "110%")
+          .addOption("120", "120%")
+          .addOption("130", "130%")
+          .addOption("150", "150%")
+          .addOption("175", "175%")
+          .addOption("200", "200%")
+          .setValue(String(plugin.settings.readerFormat.fontScalePct))
+          .onChange(async (value: string) => {
+            plugin.settings.readerFormat.fontScalePct = Number.parseInt(
+              value,
+              10,
+            );
+            await persistReaderFormat();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Line height")
+      .setDesc("Choose the reader line height preset")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("100", "100%")
+          .addOption("110", "110%")
+          .addOption("120", "120%")
+          .addOption("130", "130%")
+          .addOption("140", "140%")
+          .addOption("150", "150%")
+          .addOption("160", "160%")
+          .addOption("180", "180%")
+          .addOption("200", "200%")
+          .setValue(String(plugin.settings.readerFormat.lineHeightPct))
+          .onChange(async (value: string) => {
+            plugin.settings.readerFormat.lineHeightPct = Number.parseInt(
+              value,
+              10,
+            );
+            await persistReaderFormat();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Font")
+      .setDesc("Choose the reader font family")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("default", "Theme default")
+          .addOption("serif", "Serif")
+          .addOption("sans", "Sans")
+          .addOption("mono", "Mono")
+          .setValue(plugin.settings.readerFormat.fontFamily)
+          .onChange(async (value: string) => {
+            plugin.settings.readerFormat.fontFamily = value as
+              "default" | "serif" | "sans" | "mono";
+            await persistReaderFormat();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Alignment")
+      .setDesc("Choose how reader paragraphs align")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("justify", "Justify")
+          .addOption("left", "Left")
+          .setValue(plugin.settings.readerFormat.textAlign)
+          .onChange(async (value: string) => {
+            plugin.settings.readerFormat.textAlign = value as
+              "justify" | "left";
+            await persistReaderFormat();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Paragraph spacing")
+      .setDesc("Choose the spacing between reader paragraphs")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("default", "Theme default")
+          .addOption("tight", "Tight")
+          .addOption("normal", "Normal")
+          .addOption("loose", "Loose")
+          .setValue(plugin.settings.readerFormat.paragraphSpacing)
+          .onChange(async (value: string) => {
+            plugin.settings.readerFormat.paragraphSpacing = value as
+              "default" | "tight" | "normal" | "loose";
+            await persistReaderFormat();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Reset reader format")
+      .setDesc("Restore the reader format defaults")
+      .addButton((btn) =>
+        btn.setButtonText("Reset").onClick(() => {
+          void (async () => {
+            plugin.settings.readerFormat = { ...DEFAULT_SETTINGS.readerFormat };
+            await persistReaderFormat();
+            onRefresh();
+          })();
+        }),
+      );
+
+    containerEl.createEl("hr", { cls: "rss-dashboard-settings-separator" });
   }
-
-  new Setting(containerEl)
-    .setName("Font size")
-    .setDesc("Choose the reader body font size preset")
-    .addDropdown((dropdown) =>
-      dropdown
-        .addOption("80", "80%")
-        .addOption("90", "90%")
-        .addOption("100", "100%")
-        .addOption("110", "110%")
-        .addOption("120", "120%")
-        .addOption("130", "130%")
-        .addOption("150", "150%")
-        .addOption("175", "175%")
-        .addOption("200", "200%")
-        .setValue(String(plugin.settings.readerFormat.fontScalePct))
-        .onChange(async (value: string) => {
-          plugin.settings.readerFormat.fontScalePct = Number.parseInt(
-            value,
-            10,
-          );
-          await persistReaderFormat();
-        }),
-    );
-
-  new Setting(containerEl)
-    .setName("Line height")
-    .setDesc("Choose the reader line height preset")
-    .addDropdown((dropdown) =>
-      dropdown
-        .addOption("100", "100%")
-        .addOption("110", "110%")
-        .addOption("120", "120%")
-        .addOption("130", "130%")
-        .addOption("140", "140%")
-        .addOption("150", "150%")
-        .addOption("160", "160%")
-        .addOption("180", "180%")
-        .addOption("200", "200%")
-        .setValue(String(plugin.settings.readerFormat.lineHeightPct))
-        .onChange(async (value: string) => {
-          plugin.settings.readerFormat.lineHeightPct = Number.parseInt(
-            value,
-            10,
-          );
-          await persistReaderFormat();
-        }),
-    );
-
-  new Setting(containerEl)
-    .setName("Font")
-    .setDesc("Choose the reader font family")
-    .addDropdown((dropdown) =>
-      dropdown
-        .addOption("default", "Theme default")
-        .addOption("serif", "Serif")
-        .addOption("sans", "Sans")
-        .addOption("mono", "Mono")
-        .setValue(plugin.settings.readerFormat.fontFamily)
-        .onChange(async (value: string) => {
-          plugin.settings.readerFormat.fontFamily = value as
-            | "default"
-            | "serif"
-            | "sans"
-            | "mono";
-          await persistReaderFormat();
-        }),
-    );
-
-  new Setting(containerEl)
-    .setName("Alignment")
-    .setDesc("Choose how reader paragraphs align")
-    .addDropdown((dropdown) =>
-      dropdown
-        .addOption("justify", "Justify")
-        .addOption("left", "Left")
-        .setValue(plugin.settings.readerFormat.textAlign)
-        .onChange(async (value: string) => {
-          plugin.settings.readerFormat.textAlign = value as "justify" | "left";
-          await persistReaderFormat();
-        }),
-    );
-
-  new Setting(containerEl)
-    .setName("Paragraph spacing")
-    .setDesc("Choose the spacing between reader paragraphs")
-    .addDropdown((dropdown) =>
-      dropdown
-        .addOption("default", "Theme default")
-        .addOption("tight", "Tight")
-        .addOption("normal", "Normal")
-        .addOption("loose", "Loose")
-        .setValue(plugin.settings.readerFormat.paragraphSpacing)
-        .onChange(async (value: string) => {
-          plugin.settings.readerFormat.paragraphSpacing = value as
-            | "default"
-            | "tight"
-            | "normal"
-            | "loose";
-          await persistReaderFormat();
-        }),
-    );
-
-  new Setting(containerEl)
-    .setName("Reset reader format")
-    .setDesc("Restore the reader format defaults")
-    .addButton((btn) =>
-      btn.setButtonText("Reset").onClick(() => {
-        void (async () => {
-          plugin.settings.readerFormat = { ...DEFAULT_SETTINGS.readerFormat };
-          await persistReaderFormat();
-          onRefresh();
-        })();
-      }),
-    );
-
-  containerEl.createEl("hr", { cls: "rss-dashboard-settings-separator" });
 
   // ── Mobile toolbar ────────────────────────────────────────────────────────
   const mobileHeading = new Setting(containerEl)
@@ -1139,9 +1138,7 @@ export function renderDisplaySettingsTab(
         .setValue(plugin.settings.display.mobileListToolbarStyle || "minimal")
         .onChange(async (value: string) => {
           plugin.settings.display.mobileListToolbarStyle = value as
-            | "left-grid"
-            | "bottom-row"
-            | "minimal";
+            "left-grid" | "bottom-row" | "minimal";
           await plugin.saveSettings();
           const view = await plugin.getActiveDashboardView();
           if (view) {

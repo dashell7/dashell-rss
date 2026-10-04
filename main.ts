@@ -82,6 +82,7 @@ import {
   type AddFeedUriRequest,
 } from "./src/services/uri-action-handler";
 import { getMetadataPath } from "./src/services/metadata-location";
+import { migrateLegacyPluginData } from "./src/services/legacy-plugin-migration";
 
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { ImportStarredModal } from "./src/modals/import-starred-modal";
@@ -95,6 +96,8 @@ import {
   hasExactReleaseNoteForVersion,
 } from "./src/release-notes";
 import { migrateSettings } from "./src/utils/settings-loader";
+import { DashellLearning } from './src/dashell/controller';
+import { mountLearningPanel } from './src/dashell/learning-panel';
 import { applyAutomaticArticleTags } from "./src/utils/tag-utils";
 
 export interface FiltersUpdatedEventPayload {
@@ -178,6 +181,9 @@ export default class RssDashboardPlugin extends Plugin {
   ] as const;
 
   settings!: RssDashboardSettings;
+  dashellLearning?: DashellLearning;
+
+  mountLearningPreview(container: HTMLElement, item: FeedItem): () => void { return mountLearningPanel(container, item, this.dashellLearning); }
   feedParser!: FeedParser;
   articleSaver!: ArticleSaver;
   private backupService!: BackupService;
@@ -248,6 +254,7 @@ export default class RssDashboardPlugin extends Plugin {
     });
     this.uriActionHandler = new UriActionHandler({
       pluginId: manifest.id,
+      legacyPluginIds: ["rss-dashboard"],
       openAddFeed: (request) => this.openAddFeedFromUri(request),
       getDefaultRssFolder: () => this.settings.media.defaultRssFolder,
     });
@@ -848,7 +855,21 @@ export default class RssDashboardPlugin extends Plugin {
       this.vaultAbsolutePath = adapter.getFullPath(".");
     }
 
+    const migration = await migrateLegacyPluginData(this.app, this.manifest);
+    if (migration.status === "copied") {
+      new Notice(
+        "Dashell RSS copied your RSS dashboard settings, feed data, and learning records. The original files remain available for rollback.",
+      );
+    } else if (["conflict", "invalid", "failed"].includes(migration.status)) {
+      new Notice(
+        "Dashell RSS could not safely copy the previous RSS dashboard data. The original files are unchanged; check the plugin data folders before retrying.",
+      );
+      throw new Error(`Dashell RSS legacy data migration ${migration.status}`);
+    }
     await this.loadSettings();
+    try { this.dashellLearning = await DashellLearning.load(this.app, this.manifest); }
+    catch { new Notice('学习记录无法读取，已保留原数据；订阅功能仍可使用。'); }
+    this.register(() => this.dashellLearning?.dispose());
     await this.previewImageCache.initialize();
     this.settingsStore.registerVaultMetadataChangeListeners((ref) =>
       this.registerEvent(ref),
@@ -905,12 +926,14 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private registerProtocolHandler(): void {
-    this.registerObsidianProtocolHandler(
-      this.manifest.id,
-      (params: ObsidianProtocolData) => {
-        void this.dispatchUriAction(params);
-      },
-    );
+    for (const protocolId of new Set([this.manifest.id, "rss-dashboard"])) {
+      this.registerObsidianProtocolHandler(
+        protocolId,
+        (params: ObsidianProtocolData) => {
+          void this.dispatchUriAction(params);
+        },
+      );
+    }
   }
 
   private registerViews(): void {
@@ -942,6 +965,7 @@ export default class RssDashboardPlugin extends Plugin {
             void this.updateArticleFromReader(item, updates, shouldRerender);
           },
           {
+            onLearningPreview: (container, item) => this.mountLearningPreview(container, item),
             onPlaybackProgress: (item, position, duration, flush) => {
               this.updatePlaybackProgress(
                 item.feedUrl,
@@ -963,7 +987,7 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private registerRibbonIconAndSettingTab(): void {
-    this.addRibbonIcon("compass", "RSS dashboard", () => {
+    this.addRibbonIcon("compass", "Dashell RSS", () => {
       void this.activateView();
     });
 

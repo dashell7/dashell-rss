@@ -1,3 +1,22 @@
+# Dashell RSS
+
+Maintained by [dashell](https://github.com/dashell7). This customization integrates
+local reading materials with [Dashell Reader](https://github.com/dashell7/qiaomu-reader-english)
+and [Dashell Player](https://github.com/dashell7/obsidian-langplayer).
+The dedicated Dashell RSS repository has not been created yet; the current
+candidate is local. Upstream documentation follows; source and license notices
+are preserved in [NOTICE.md](NOTICE.md).
+
+This local candidate uses plugin ID `dashell-rss`, version `2.7.1-dashell.1`.
+Install its built `main.js`, `manifest.json`, and `styles.css` into
+`<vault>/.obsidian/plugins/dashell-rss/` (use your vault's actual configuration
+folder). Disable the customized `rss-dashboard` instance before enabling
+Dashell RSS. First launch copies its settings, feed shards, article state,
+learning records and backups. The old plugin directory is retained for rollback;
+custom vault storage folders stay unchanged. Updates must come from Dashell's
+own artifacts. The upstream community-plugin installation steps below install
+the original RSS Dashboard, not this customized candidate.
+
 <div align="center">
   <img src="assets/branding/logo.png" alt="RSS Dashboard Logo" width="180" />
 </div>

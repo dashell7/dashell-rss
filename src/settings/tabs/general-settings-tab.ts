@@ -27,11 +27,13 @@ import {
 import type { ImportResult } from "../../services/import-export-service";
 import type { RssDashboardSettings } from "../../types/types";
 import { PREDEFINED_PROXIES } from "../../utils/proxy-utils";
+import type { DashellLearning } from "../../dashell/controller";
 
 export interface GeneralSettingsPlugin {
   app: App;
   settingTab: { display(): void } | null;
   settings: RssDashboardSettings;
+  dashellLearning?: DashellLearning;
   saveSettings(): Promise<void>;
   getActiveDashboardView(): Promise<{
     leaf: WorkspaceLeaf;
@@ -99,51 +101,53 @@ export function renderGeneralSettingsTab(
     );
 
   new Setting(containerEl)
-    .setName("Reader view location")
-    .setDesc("Choose where to open articles/media when clicked")
-    .addDropdown((dropdown) =>
-      dropdown
-        .addOption("main", "Main view (split)")
-        .addOption("right-sidebar", "Right sidebar")
-        .addOption("left-sidebar", "Left sidebar")
-        .addOption("inline", "Inline (inside dashboard)")
-        .addOption("external-browser", "External browser")
-        .setValue(plugin.settings.readerViewLocation || "main")
-        .onChange(async (value: string) => {
-          plugin.settings.readerViewLocation =
-            value as import("../../types/types").ViewLocation;
-          await plugin.saveSettings();
-        }),
-    );
+      .setName(plugin.dashellLearning ? "媒体预览位置" : "Reader view location")
+      .setDesc(plugin.dashellLearning ? "选择播客和视频的预览位置" : "Choose where to open articles/media when clicked")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("main", "Main view (split)")
+          .addOption("right-sidebar", "Right sidebar")
+          .addOption("left-sidebar", "Left sidebar")
+          .addOption("inline", "Inline (inside dashboard)")
+          .addOption("external-browser", "External browser")
+          .setValue(plugin.settings.readerViewLocation || "main")
+          .onChange(async (value: string) => {
+            plugin.settings.readerViewLocation =
+              value as import("../../types/types").ViewLocation;
+            await plugin.saveSettings();
+          }),
+      );
 
-  new Setting(containerEl)
-    .setName("Saved article open location")
-    .setDesc("Choose where to open saved article files")
-    .addDropdown((dropdown) =>
-      dropdown
-        .addOption("main", "Main view (split)")
-        .addOption("right-sidebar", "Right sidebar")
-        .addOption("left-sidebar", "Left sidebar")
-        .addOption("inline", "Inline (inside dashboard)")
-        .setValue(plugin.settings.savedArticleOpenLocation || "main")
-        .onChange(async (value: string) => {
-          plugin.settings.savedArticleOpenLocation =
-            value as import("../../types/types").ViewLocation;
-          await plugin.saveSettings();
-        }),
-    );
+  if (!plugin.dashellLearning) {
+    new Setting(containerEl)
+      .setName("Saved article open location")
+      .setDesc("Choose where to open saved article files")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("main", "Main view (split)")
+          .addOption("right-sidebar", "Right sidebar")
+          .addOption("left-sidebar", "Left sidebar")
+          .addOption("inline", "Inline (inside dashboard)")
+          .setValue(plugin.settings.savedArticleOpenLocation || "main")
+          .onChange(async (value: string) => {
+            plugin.settings.savedArticleOpenLocation =
+              value as import("../../types/types").ViewLocation;
+            await plugin.saveSettings();
+          }),
+      );
 
-  new Setting(containerEl)
-    .setName("Use web viewer")
-    .setDesc("Use web viewer core plugin for articles when available")
-    .addToggle((toggle) =>
-      toggle
-        .setValue(plugin.settings.useWebViewer || false)
-        .onChange(async (value) => {
-          plugin.settings.useWebViewer = value;
-          await plugin.saveSettings();
-        }),
-    );
+    new Setting(containerEl)
+      .setName("Use web viewer")
+      .setDesc("Use web viewer core plugin for articles when available")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(plugin.settings.useWebViewer || false)
+          .onChange(async (value) => {
+            plugin.settings.useWebViewer = value;
+            await plugin.saveSettings();
+          }),
+      );
+  }
 
   new Setting(containerEl)
     .setName("Results shown per page")
@@ -437,11 +441,7 @@ export function renderGeneralSettingsTab(
   };
 
   const updateRetentionProtection = (
-    key:
-      | "protectStarred"
-      | "protectSaved"
-      | "protectTagged"
-      | "protectUnread",
+    key: "protectStarred" | "protectSaved" | "protectTagged" | "protectUnread",
     nextValue: boolean,
     revertControl: () => void,
   ) => {
@@ -561,9 +561,7 @@ export function renderGeneralSettingsTab(
       });
   });
 
-  new Setting(containerEl)
-    .setName("Protected from auto-deletion")
-    .setHeading();
+  new Setting(containerEl).setName("Protected from auto-deletion").setHeading();
 
   new Setting(containerEl)
     .setName("Protect starred articles")
@@ -580,41 +578,37 @@ export function renderGeneralSettingsTab(
 
   new Setting(containerEl)
     .setName("Protect saved articles")
-    .setDesc("Keep articles saved to your vault when retention limits are applied")
+    .setDesc(
+      "Keep articles saved to your vault when retention limits are applied",
+    )
     .addToggle((toggle) =>
-      toggle
-        .setValue(plugin.settings.protectSaved)
-        .onChange(async (value) => {
-          updateRetentionProtection("protectSaved", value, () => {
-            toggle.setValue(plugin.settings.protectSaved);
-          });
-        }),
+      toggle.setValue(plugin.settings.protectSaved).onChange(async (value) => {
+        updateRetentionProtection("protectSaved", value, () => {
+          toggle.setValue(plugin.settings.protectSaved);
+        });
+      }),
     );
 
   new Setting(containerEl)
     .setName("Protect tagged articles")
     .setDesc("Keep tagged articles when retention limits are applied")
     .addToggle((toggle) =>
-      toggle
-        .setValue(plugin.settings.protectTagged)
-        .onChange(async (value) => {
-          updateRetentionProtection("protectTagged", value, () => {
-            toggle.setValue(plugin.settings.protectTagged);
-          });
-        }),
+      toggle.setValue(plugin.settings.protectTagged).onChange(async (value) => {
+        updateRetentionProtection("protectTagged", value, () => {
+          toggle.setValue(plugin.settings.protectTagged);
+        });
+      }),
     );
 
   new Setting(containerEl)
     .setName("Protect unread articles")
     .setDesc("Keep unread articles when retention limits are applied")
     .addToggle((toggle) =>
-      toggle
-        .setValue(plugin.settings.protectUnread)
-        .onChange(async (value) => {
-          updateRetentionProtection("protectUnread", value, () => {
-            toggle.setValue(plugin.settings.protectUnread);
-          });
-        }),
+      toggle.setValue(plugin.settings.protectUnread).onChange(async (value) => {
+        updateRetentionProtection("protectUnread", value, () => {
+          toggle.setValue(plugin.settings.protectUnread);
+        });
+      }),
     );
 
   new Setting(containerEl)

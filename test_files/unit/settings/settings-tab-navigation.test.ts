@@ -18,8 +18,9 @@ import {
 // ── SETTINGS_TAB_NAMES ───────────────────────────────────────────────────────
 
 describe("SETTINGS_TAB_NAMES", () => {
-  it("contains exactly 11 tabs", () => {
-    expect(SETTINGS_TAB_NAMES).toHaveLength(11);
+  it("includes the learning tab alongside the existing tabs", () => {
+    expect(SETTINGS_TAB_NAMES).toHaveLength(12);
+    expect(SETTINGS_TAB_NAMES).toContain('英语学习');
   });
 
   it("includes all expected tab names", () => {

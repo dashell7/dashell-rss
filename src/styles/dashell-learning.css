@@ -1,0 +1,35 @@
+.rss-dashell-learning-panel {
+  max-width: 780px;
+  margin: 0 auto 24px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+  font-family: var(--font-interface);
+}
+.rss-dashell-learning-panel .rss-dashell-learning-actions,
+.rss-dashell-learning-panel .rss-dashell-learning-versions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.rss-dashell-learning-panel .rss-dashell-learning-versions {
+  margin-top: 12px;
+}
+.rss-dashell-learning-panel
+  .rss-dashell-learning-versions
+  button[aria-pressed="true"] {
+  color: var(--text-accent);
+  background: var(--background-modifier-active-hover);
+}
+.rss-dashell-learning-panel .rss-dashell-learning-status {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: 1.5;
+}
+.rss-dashell-learning-panel .rss-dashell-learning-error {
+  margin-top: 8px;
+  color: var(--text-error);
+  font-size: var(--font-ui-small);
+}

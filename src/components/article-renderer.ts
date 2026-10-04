@@ -31,6 +31,7 @@ const VIDEO_ARTICLE_BANNER =
 const VIDEO_ARTICLE_LINK_TEXT = "Open video at source";
 
 export interface ArticleRendererOptions {
+  onLearningPreview?: (container: HTMLElement, item: FeedItem) => () => void;
   app: App;
   component: Component;
   settings: RssDashboardSettings;
@@ -50,6 +51,9 @@ export interface ArticleRendererOptions {
 }
 
 export class ArticleRenderer {
+  private renderGeneration = 0;
+  private onLearningPreview?: ArticleRendererOptions['onLearningPreview'];
+  private learningCleanup?: () => void;
   private app: App;
   private component: Component;
   private settings: RssDashboardSettings;
@@ -79,6 +83,8 @@ export class ArticleRenderer {
   private lastRestrictedNoticeGuid: string | null = null;
 
   constructor(options: ArticleRendererOptions) {
+    this.onLearningPreview = options.onLearningPreview;
+    options.component.register(() => this.learningCleanup?.());
     this.app = options.app;
     this.component = options.component;
     this.settings = options.settings;
@@ -93,6 +99,9 @@ export class ArticleRenderer {
     item: FeedItem,
     relatedItems: FeedItem[] = [],
   ): Promise<void> {
+    const generation = ++this.renderGeneration;
+    this.learningCleanup?.();
+    container.addClass('rss-dashell-reader-content');
     if (this.currentItem?.guid !== item.guid) {
       this.lastRestrictedNoticeGuid = null;
     }
@@ -126,7 +135,8 @@ export class ArticleRenderer {
     } else {
       const fetchedContent = this.shouldSkipFullArticleFetch(item)
         ? ""
-        : await this.fetchFullArticleContent(item.link);
+        : await this.fetchFullArticleContent(item.link, generation);
+      if (generation !== this.renderGeneration) return;
       const hasFullArticleContent =
         this.hasMeaningfulArticleContent(fetchedContent);
 
@@ -148,6 +158,14 @@ export class ArticleRenderer {
       this.currentContentIsFullArticle = hasFullArticleContent;
       await this.displayArticle(container, item, fullContent);
     }
+    if (generation === this.renderGeneration && this.currentItem === item) this.learningCleanup = this.onLearningPreview?.(container, { ...item, content: this.currentFullContent || item.content });
+  }
+
+  public disposePreview(): void {
+    this.renderGeneration++;
+    this.learningCleanup?.();
+    this.learningCleanup = undefined;
+    this.cleanupPlayers();
   }
 
   private async displayVideo(
@@ -627,7 +645,7 @@ export class ArticleRenderer {
 
   // --- Helper methods (extracted from ReaderView) ---
 
-  private async fetchFullArticleContent(url?: string): Promise<string> {
+  private async fetchFullArticleContent(url?: string, generation = this.renderGeneration): Promise<string> {
     if (!url) {
       this.currentFullContentFailureType = "none";
       return "";
@@ -638,9 +656,11 @@ export class ArticleRenderer {
         ? this.settings.corsProxyUrl
         : undefined;
       const result = await fetchFullArticleContentWithOutcome(url, proxyUrl);
+      if (generation !== this.renderGeneration) return "";
       this.currentFullContentFailureType = result.failureType;
       return result.content;
     } catch {
+      if (generation !== this.renderGeneration) return "";
       this.currentFullContentFailureType = "network";
       return "";
     }

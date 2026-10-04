@@ -13,6 +13,7 @@ export const SETTINGS_TAB_NAMES = [
   "Sidebar",
   "Media",
   "Article saving",
+  "英语学习",
   "Rules",
   "Highlights",
   "Import/Export",

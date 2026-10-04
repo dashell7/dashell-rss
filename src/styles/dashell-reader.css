@@ -1,0 +1,213 @@
+/* Reading toolbar and prose adapted from Qiaomu AI RSS ac2c792, GPL-3.0-only.
+   Host theme colors and the existing reader-format settings stay authoritative. */
+.rss-dashell-reader {
+  container-type: inline-size;
+  min-width: 0;
+}
+.rss-reader-view.rss-dashell-reader {
+  padding: 0;
+}
+.rss-dashell-reader .rss-dashell-reader-toolbar {
+  gap: 6px;
+  min-height: 44px;
+  padding: 5px 12px;
+  margin: 0;
+  border-radius: 0;
+  background: var(--background-primary);
+  border-bottom: 1px solid var(--background-modifier-border);
+  justify-content: flex-start;
+  flex-shrink: 0;
+}
+.rss-dashell-reader .rss-reader-actions {
+  gap: 2px;
+  margin-left: auto;
+}
+.rss-dashell-reader .rss-dashell-reader-nav {
+  display: flex;
+  gap: 0;
+  margin-left: 4px;
+}
+.rss-dashell-reader .rss-dashell-reader-icon,
+.rss-dashell-reader .rss-reader-action-button,
+.rss-dashell-reader .rss-dashboard-tags-toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 7px;
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.rss-dashell-reader .rss-dashell-reader-icon:hover,
+.rss-dashell-reader .rss-reader-action-button:hover,
+.rss-dashell-reader .rss-dashboard-tags-toggle:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+.rss-dashell-reader .rss-dashell-reader-icon svg,
+.rss-dashell-reader .rss-reader-action-button svg,
+.rss-dashell-reader .rss-dashboard-tags-toggle svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 1.7;
+}
+.rss-dashell-reader .rss-reader-star-toggle.starred svg {
+  fill: currentColor;
+}
+.rss-dashell-reader .rss-reader-action-button:focus-visible,
+.rss-dashell-reader .rss-dashell-reader-icon:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -2px;
+}
+.rss-dashell-visually-hidden.rss-dashell-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.rss-dashell-reader-version-slot {
+  min-width: 0;
+  flex-shrink: 1;
+}
+.rss-dashell-mode-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+.rss-dashell-reader-toolbar .rss-dashell-mode-label {
+  font-size: 0;
+  gap: 0;
+}
+.rss-dashell-reader-version-slot .rss-dashell-reader-mode {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  width: 106px;
+  max-width: 100%;
+  padding: 4px 22px 4px 6px;
+  height: 30px;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+.rss-dashell-reader .rss-reader-content,
+.rss-dashell-reader-content {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 30px 40px 90px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+.rss-dashell-reader .rss-reader-article-header,
+.rss-dashell-reader .rss-reader-article-content,
+.rss-dashell-reader .rss-reader-description-callout,
+.rss-dashell-reader .rss-reader-inline-banner,
+.rss-dashell-reader-content .rss-reader-article-header,
+.rss-dashell-reader-content .rss-reader-article-content {
+  width: 100%;
+  max-width: min(780px, var(--rss-reader-max-width, 100%));
+  padding: 0;
+  margin-left: auto;
+  margin-right: auto;
+}
+.rss-dashell-reader .rss-reader-item-title,
+.rss-dashell-reader-content .rss-reader-item-title {
+  margin: 0 0 26px;
+  font-size: 30px;
+  line-height: 1.5;
+  font-weight: 600;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.rss-dashell-reader .rss-reader-meta,
+.rss-dashell-reader-content .rss-reader-meta {
+  gap: 4px 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+.rss-dashell-reader .rss-reader-article-content,
+.rss-dashell-reader-content .rss-reader-article-content {
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.rss-dashell-reader .rss-reader-article-content p,
+.rss-dashell-reader-content .rss-reader-article-content p {
+  margin: 1.1em 0;
+}
+.rss-dashell-reader .rss-reader-article-content h2,
+.rss-dashell-reader-content .rss-reader-article-content h2 {
+  margin: 1.8em 0 0.7em;
+  font-size: 1.3em;
+  line-height: 1.6;
+}
+.rss-dashell-reader .rss-reader-article-content h3,
+.rss-dashell-reader-content .rss-reader-article-content h3 {
+  margin: 1.6em 0 0.6em;
+  font-size: 1.12em;
+}
+.rss-dashell-reader .rss-reader-article-content blockquote,
+.rss-dashell-reader-content .rss-reader-article-content blockquote {
+  margin: 1.4em 0;
+  padding: 16px 20px;
+  border: 0;
+  background: var(--background-secondary);
+  border-radius: 6px;
+}
+.rss-dashell-reader .rss-reader-article-content img,
+.rss-dashell-reader-content .rss-reader-article-content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+.rss-dashell-reader .rss-reader-article-content pre,
+.rss-dashell-reader-content .rss-reader-article-content pre {
+  overflow: auto;
+  padding: 16px;
+  border-radius: 6px;
+  background: var(--background-secondary);
+  font-family: var(--font-monospace);
+}
+.rss-dashell-reader .rss-reader-article-content table,
+.rss-dashell-reader-content .rss-reader-article-content table {
+  display: block;
+  overflow: auto;
+  max-width: 100%;
+}
+@container (max-width: 560px) {
+  .rss-dashell-reader .rss-dashell-reader-nav {
+    display: none;
+  }
+  .rss-dashell-reader .rss-reader-content {
+    padding: 24px 20px 64px;
+  }
+  .rss-dashell-reader .rss-reader-item-title {
+    font-size: 24px;
+  }
+}
+@container (max-width: 370px) {
+  .rss-dashell-reader .rss-dashell-reader-toolbar {
+    flex-wrap: wrap;
+  }
+  .rss-dashell-reader .rss-reader-actions {
+    flex-basis: 100%;
+  }
+}

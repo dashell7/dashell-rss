@@ -15,7 +15,11 @@
 import { App, PluginSettingTab } from "obsidian";
 import RssDashboardPlugin from "./../../main";
 // Re-export pure helpers for backwards compatibility with any external imports.
-export { SETTINGS_TAB_NAMES, isValidSettingsTab, getInitialTab } from "./tab-names";
+export {
+  SETTINGS_TAB_NAMES,
+  isValidSettingsTab,
+  getInitialTab,
+} from "./tab-names";
 export type { SettingsTabName } from "./tab-names";
 
 // Tab renderer imports
@@ -30,6 +34,9 @@ import { renderHighlightsSettingsTab } from "./tabs/highlights-settings-tab";
 import { renderImportExportSettingsTab } from "./tabs/import-export-settings-tab";
 import { renderTagsSettingsTab } from "./tabs/tags-settings-tab";
 import { renderAboutTab } from "./tabs/about-settings-tab";
+import { renderLearningSettings } from "../dashell/settings-renderer";
+import { getSettingsTabLabel } from "./chinese-localization";
+import { localizeSettingsElement } from "./settings-dom-localizer";
 import {
   SETTINGS_TAB_NAMES,
   SettingsTabName,
@@ -44,6 +51,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
   private currentTab: SettingsTabName = getInitialTab();
   private pendingSection: string | null = null;
   private displaySettingsCleanup: (() => void) | null = null;
+  private settingsLocalizationCleanup: (() => void) | null = null;
 
   constructor(app: App, plugin: RssDashboardPlugin) {
     super(app, plugin);
@@ -67,6 +75,8 @@ export class RssDashboardSettingTab extends PluginSettingTab {
   display(): void {
     this.displaySettingsCleanup?.();
     this.displaySettingsCleanup = null;
+    this.settingsLocalizationCleanup?.();
+    this.settingsLocalizationCleanup = null;
     const { containerEl } = this;
     containerEl.empty();
 
@@ -74,7 +84,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     const tabBar = containerEl.createDiv("rss-dashboard-settings-tab-bar");
     SETTINGS_TAB_NAMES.forEach((tab) => {
       const tabBtn = tabBar.createEl("button", {
-        text: tab,
+        text: getSettingsTabLabel(tab),
         cls:
           "rss-dashboard-settings-tab-btn" +
           (this.currentTab === tab ? " active" : ""),
@@ -136,6 +146,10 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         renderRulesSettingsTab(tabContent, this.plugin, onRefresh);
         this.pendingSection = null;
         break;
+      case "英语学习":
+        renderLearningSettings(tabContent, this.plugin.dashellLearning);
+        this.pendingSection = null;
+        break;
       case "Highlights":
         renderHighlightsSettingsTab(tabContent, this.plugin, onRefresh);
         this.pendingSection = null;
@@ -153,5 +167,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         this.pendingSection = null;
         break;
     }
+
+    this.settingsLocalizationCleanup = localizeSettingsElement(tabContent);
   }
 }

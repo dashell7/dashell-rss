@@ -1,3 +1,4 @@
+import type { SourceMetadata } from '../../dashell/model';
 export interface ParsedFeed {
   title: string;
   description?: string;
@@ -11,6 +12,7 @@ export interface ParsedFeed {
 }
 
 export interface ParsedItem {
+  dashell?: SourceMetadata;
   title: string;
   link: string;
   description: string;

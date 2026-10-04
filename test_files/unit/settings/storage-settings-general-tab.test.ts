@@ -53,8 +53,13 @@ function getSettingByName(containerEl: HTMLElement, name: string): HTMLElement {
 }
 
 function createPlugin() {
+  const app = obsidian.App.createMock() as unknown as obsidian.App;
   return {
-    app: obsidian.App.createMock() as unknown as obsidian.App,
+    app,
+    manifest: {
+      id: "dashell-rss",
+      dir: `${app.vault.configDir}/plugins/dashell-rss`,
+    },
     settingTab: {
       display: vi.fn(),
     },

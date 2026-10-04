@@ -1,11 +1,10 @@
 {
-	"id": "rss-dashboard",
-	"name": "RSS Dashboard",
-	"version": "2.7.1",
-	"minAppVersion": "1.8.7",
-	"description": "A dashboard for organizing and consuming RSS feeds, YouTube channels, and podcasts with smart tagging, media playback, and seamless content flow.",
-	"author": "Aditya Amatya",
-	"authorUrl": "https://github.com/amatya-aditya",
-	"fundingUrl": "https://buymeacoffee.com/amatya_aditya",
-	"isDesktopOnly": false
+  "id": "dashell-rss",
+  "name": "Dashell RSS",
+  "version": "2.7.1-dashell.1",
+  "minAppVersion": "1.8.7",
+  "description": "RSS Dashboard customized for previewing, downloading and learning resources with Dashell Reader and Player.",
+  "author": "dashell",
+  "authorUrl": "https://github.com/dashell7",
+  "isDesktopOnly": false
 }

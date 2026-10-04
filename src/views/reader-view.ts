@@ -104,6 +104,7 @@ import {
 import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
 import { openWebViewerSaveModal } from "../modals/web-viewer-save-modal";
 import { setupReaderHotkeys } from "../hotkeys/reader-hotkeys";
+import { readerStart } from '../dashell/reader-chrome';
 
 const VIDEO_ARTICLE_BANNER =
   "This item appears to be a video. Open the source page to watch.";
@@ -121,6 +122,8 @@ const STARRED_IMPORT_FETCH_FAILED_NOTICE =
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
 
 export class ReaderView extends ItemView {
+  private onLearningPreview?: (container: HTMLElement, item: FeedItem) => () => void;
+  private learningCleanup?: () => void;
   private currentItem: FeedItem | null = null;
   private readingContainer!: HTMLElement;
   private titleElement!: HTMLElement;
@@ -234,6 +237,7 @@ export class ReaderView extends ItemView {
       shouldRerender?: boolean,
     ) => void,
     options?: {
+      onLearningPreview?: (container: HTMLElement, item: FeedItem) => () => void;
       onPlaybackProgress?: (
         item: FeedItem,
         position: number,
@@ -243,6 +247,8 @@ export class ReaderView extends ItemView {
     },
   ) {
     super(leaf);
+    this.onLearningPreview = options?.onLearningPreview;
+    this.register(() => this.learningCleanup?.());
     this.settingsProvider =
       typeof settings === "function" ? settings : () => settings;
     this.articleSaverProvider =
@@ -771,7 +777,7 @@ export class ReaderView extends ItemView {
       ? this.currentReaderTitle ||
           this.currentDisplayTitle ||
           this.currentItem.title
-      : "RSS reader";
+      : "Dashell RSS";
   }
 
   getIcon(): string {
@@ -787,7 +793,7 @@ export class ReaderView extends ItemView {
 
   private getEffectiveReaderTitle(): string {
     if (!this.currentItem) {
-      return "RSS reader";
+      return "Dashell RSS";
     }
 
     return (
@@ -811,7 +817,7 @@ export class ReaderView extends ItemView {
 
   onOpen(): Promise<void> {
     this.contentEl.empty();
-    this.contentEl.addClass("rss-reader-view");
+    this.contentEl.addClass("rss-reader-view", "rss-dashell-reader");
 
     // Make the view container focusable so keyboard events are routed through
     // Obsidian's scope system when this view is active.
@@ -837,10 +843,11 @@ export class ReaderView extends ItemView {
       );
     }
 
-    const header = this.contentEl.createDiv({ cls: "rss-reader-header" });
+    const header = this.contentEl.createDiv({ cls: "rss-reader-header rss-dashell-reader-toolbar" });
 
-    const backButton = header.createDiv({ cls: "rss-reader-back-button" });
+    const backButton = header.createEl('button', { cls: "rss-reader-back-button rss-dashell-reader-icon", attr: { type: 'button' } });
     setIcon(backButton, "arrow-left");
+    setTooltip(backButton, '返回订阅列表');
 
     const handleBackClick = () => {
       void this.navigateBackToDashboard();
@@ -848,22 +855,19 @@ export class ReaderView extends ItemView {
 
     backButton.addEventListener("click", handleBackClick);
 
-    this.titleElement = header.createDiv({
-      cls: "rss-reader-title",
-      text: "RSS reader",
-    });
+    this.titleElement = readerStart(header, () => this.actionNavigatePrevious(), () => this.actionNavigateNext());
 
     this.currentItem = null;
 
     const actions = header.createDiv({ cls: "rss-reader-actions" });
 
     // Save button
-    this.saveButton = actions.createDiv({
+    this.saveButton = actions.createEl('button', {
       cls: "rss-reader-action-button",
       attr: { "aria-label": "Save article" },
     });
 
-    setIcon(this.saveButton, "save");
+    setIcon(this.saveButton, "file-plus");
     this.saveButton.addEventListener("click", (e) => {
       if (this.currentItem && this.currentItem.saved) {
         const file = this.app.vault.getAbstractFileByPath(
@@ -883,7 +887,7 @@ export class ReaderView extends ItemView {
     });
 
     // Read toggle button
-    this.readToggleButton = actions.createDiv({
+    this.readToggleButton = actions.createEl('button', {
       cls: "rss-reader-action-button rss-reader-read-toggle",
       attr: { "aria-label": "Mark as read/unread" },
     });
@@ -895,7 +899,7 @@ export class ReaderView extends ItemView {
     });
 
     // Star toggle button
-    this.starToggleButton = actions.createDiv({
+    this.starToggleButton = actions.createEl('button', {
       cls: "rss-reader-action-button rss-reader-star-toggle",
       attr: {
         role: "button",
@@ -904,7 +908,7 @@ export class ReaderView extends ItemView {
         "aria-pressed": "false",
       },
     });
-    setIcon(this.starToggleButton, "star-off");
+    setIcon(this.starToggleButton, "bookmark");
     this.starToggleButton.addEventListener("click", () => {
       if (this.currentItem) {
         this.toggleStarStatus();
@@ -921,7 +925,7 @@ export class ReaderView extends ItemView {
     const tagsDropdown = actions.createDiv({
       cls: "rss-dashboard-tags-dropdown",
     });
-    const tagsButton = tagsDropdown.createDiv({
+    const tagsButton = tagsDropdown.createEl("button", {
       cls: "rss-dashboard-tags-toggle clickable-icon rss-reader-action-button",
       attr: {
         role: "button",
@@ -938,15 +942,9 @@ export class ReaderView extends ItemView {
       this.toggleTagsDropdown(tagsButton);
     };
     tagsButton.addEventListener("click", toggleTagsMenu);
-    tagsButton.addEventListener("keydown", (e: KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        toggleTagsMenu(e);
-      }
-    });
 
     // Reader formatting button
-    const readerFormatButton = actions.createDiv({
+    const readerFormatButton = actions.createEl('button', {
       cls: "rss-reader-action-button rss-reader-format-button",
       attr: {
         "aria-label": "Reader settings",
@@ -959,16 +957,9 @@ export class ReaderView extends ItemView {
       e.stopPropagation();
       this.toggleReaderFormatDropdown(readerFormatButton);
     });
-    readerFormatButton.addEventListener("keydown", (e: KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        e.stopPropagation();
-        this.toggleReaderFormatDropdown(readerFormatButton);
-      }
-    });
 
     // Open in browser button
-    const browserButton = actions.createDiv({
+    const browserButton = actions.createEl('button', {
       cls: "rss-reader-action-button",
       attr: { "aria-label": "Open in browser" },
     });
@@ -1199,6 +1190,7 @@ export class ReaderView extends ItemView {
     item: FeedItem,
     relatedItems: FeedItem[] = [],
   ): Promise<void> {
+    this.learningCleanup?.();
     if (this.currentItem?.guid !== item.guid) {
       this.lastRestrictedNoticeGuid = null;
     }
@@ -1255,6 +1247,7 @@ export class ReaderView extends ItemView {
       this.syncReaderTitle();
       await this.displayArticle(item, fullContent);
     }
+    if (this.currentItem === item) this.learningCleanup = this.onLearningPreview?.(this.readingContainer, { ...item, content: this.currentFullContent || item.content });
   }
 
   private async displayVideo(item: FeedItem): Promise<void> {
@@ -2567,7 +2560,7 @@ export class ReaderView extends ItemView {
     if (this.starToggleButton) {
       setIcon(
         this.starToggleButton,
-        this.currentItem.starred ? "star" : "star-off",
+        "bookmark",
       );
       this.starToggleButton.classList.toggle(
         "starred",
@@ -2579,7 +2572,7 @@ export class ReaderView extends ItemView {
       );
       this.starToggleButton.setAttribute(
         "aria-pressed",
-        String(this.currentItem.starred),
+        String(Boolean(this.currentItem.starred)),
       );
       setTooltip(
         this.starToggleButton,
@@ -2591,6 +2584,7 @@ export class ReaderView extends ItemView {
     if (this.saveButton) {
       const isSaved = Boolean(this.currentItem.saved);
       this.saveButton.toggleClass("saved", isSaved);
+      setIcon(this.saveButton, isSaved ? 'file-check' : 'file-plus');
       setTooltip(
         this.saveButton,
         isSaved ? "Click to open saved article" : "Save article",

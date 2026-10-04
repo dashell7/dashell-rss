@@ -25,12 +25,17 @@ function hintSettings(overrides: Partial<HintSettings> = {}): HintSettings {
 }
 
 function createPlugin(overrides: Partial<HintSettings> = {}) {
+  const app = obsidian.App.createMock();
   const settings = JSON.parse(
     JSON.stringify(DEFAULT_SETTINGS),
   ) as RssDashboardSettings;
   Object.assign(settings, overrides);
   return {
-    app: obsidian.App.createMock(),
+    app,
+    manifest: {
+      id: "dashell-rss",
+      dir: `${app.vault.configDir}/plugins/dashell-rss`,
+    },
     settingTab: { display: vi.fn() },
     settings,
     saveSettings: vi.fn(async () => {}),
@@ -162,11 +167,11 @@ describe("renderStorageSettingsTab() - metadata location hint", () => {
     renderStorageSettingsTab(
       containerEl,
       createPlugin({
-        metadataStorageFolder: "my-config/plugins/rss-dashboard/data",
+        metadataStorageFolder: "my-config/plugins/dashell-rss/data",
       }) as never,
     );
     expect(metadataInput(containerEl).placeholder).toBe(
-      "my-config/plugins/rss-dashboard/data",
+      "my-config/plugins/dashell-rss/data",
     );
   });
 

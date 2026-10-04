@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { englishDateLocale } from '../helpers/date-locale';
 import { App, TFile, moment } from "obsidian";
 import type { ArticleSavingSettings, FeedItem } from "../../../src/types/types";
 import {
@@ -47,10 +48,12 @@ function createItem(overrides: Partial<FeedItem> = {}): FeedItem {
 }
 
 beforeEach(() => {
+  englishDateLocale();
   vi.spyOn(console, "debug").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
+afterEach(() => { vi.restoreAllMocks(); });
 
 describe("sanitizeFilename", () => {
   it("removes invalid characters and caps long titles at 100 characters", () => {

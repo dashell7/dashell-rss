@@ -11,6 +11,17 @@ import { formatBuildLabel, getBuildInfo } from "../../utils/build-info";
 import { WhatsNewModal } from "../../modals/whats-new-modal";
 import { getReleaseNoteForVersion } from "../../release-notes";
 
+function renderMaintainer(containerEl: HTMLElement, plugin: RssDashboardPlugin): void {
+  const paragraph = containerEl.createEl("p", { text: "作者：" });
+  const link = paragraph.createEl("a", {
+    text: plugin.manifest.author || "dashell",
+    href: plugin.manifest.authorUrl || "https://github.com/dashell7",
+    cls: "rss-dashboard-about-link",
+  });
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+}
+
 export function renderAboutTab(
   containerEl: HTMLElement,
   plugin: RssDashboardPlugin,
@@ -79,6 +90,7 @@ export function renderAboutTab(
   });
   featuresList.createEl("li", { text: "No ads, no tracking, no paywalls." });
 
+  renderMaintainer(descriptionContainer, plugin);
   const attributionParagraph = descriptionContainer.createEl("p");
   attributionParagraph.createSpan({
     text: "RSS Dashboard was originally created by ",
@@ -124,18 +136,18 @@ export function renderAboutTab(
   createLinkButton(
     actionsRow,
     "GitHub",
-    "https://github.com/amatya-aditya/obsidian-rss-dashboard",
+    "https://github.com/dashell7",
   );
   createLinkButton(
     actionsRow,
-    "Report issue",
-    "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues",
+    "联系作者",
+    "https://github.com/dashell7",
   );
-  createLinkButton(actionsRow, "Discord", "https://discord.gg/9bu7V9BBbs");
+  createLinkButton(actionsRow, "RSS Dashboard 上游", "https://github.com/amatya-aditya/obsidian-rss-dashboard");
 
   aboutContainer.createDiv({
     cls: "rss-dashboard-about-section-title",
-    text: "Support development",
+    text: "支持上游开发",
   });
   const supportRow = aboutContainer.createDiv({
     cls: "rss-dashboard-about-btn-row",
@@ -156,17 +168,17 @@ export function renderAboutTab(
   });
   createLinkButton(
     otherPluginsRow,
-    "Advanced Multi Column",
-    "https://github.com/amatya-aditya/advanced-multi-column",
+    "Dashell Reader",
+    "https://github.com/dashell7/qiaomu-reader-english",
   );
   createLinkButton(
     otherPluginsRow,
-    "Media Slider",
-    "https://github.com/amatya-aditya/obsidian-media-slider",
+    "Dashell Player",
+    "https://github.com/dashell7/obsidian-langplayer",
   );
   createLinkButton(
     otherPluginsRow,
-    "Zen Space",
-    "https://github.com/amatya-aditya/obsidian-zen-space",
+    "GitHub @dashell7",
+    "https://github.com/dashell7",
   );
 }

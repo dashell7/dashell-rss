@@ -40,8 +40,13 @@ function sampleFolders(): Folder[] {
 }
 
 function createPlugin() {
+  const app = obsidian.App.createMock();
   return {
-    app: obsidian.App.createMock(),
+    app,
+    manifest: {
+      id: "dashell-rss",
+      dir: `${app.vault.configDir}/plugins/dashell-rss`,
+    },
     settingTab: { display: vi.fn() },
     settings: cloneSettings(),
     saveSettings: vi.fn(async () => {}),
@@ -355,7 +360,7 @@ describe("renderStorageSettingsTab() - previous metadata copy cleanup", () => {
     const containerEl = document.body.appendChild(createDiv());
     const plugin = createPlugin();
     const { vault } = plugin.app;
-    const pluginDir = `${vault.configDir}/plugins/rss-dashboard`;
+    const pluginDir = `${vault.configDir}/plugins/dashell-rss`;
     const bootstrapPath = `${pluginDir}/data.json`;
     await vault.adapter.mkdir(pluginDir);
     await vault.adapter.write(bootstrapPath, "{}");

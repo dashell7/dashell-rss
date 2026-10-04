@@ -239,6 +239,29 @@ describe("feed subscription: addFeed duplicates and defaults", () => {
     expect(harness.save).not.toHaveBeenCalled();
   });
 
+  it("does not subscribe the same URL twice when two requests overlap", async () => {
+    const harness = createHarness();
+    let finish: (feed: Feed) => void = () => {};
+    harness.parseFeed.mockImplementationOnce(
+      (_url, existing) =>
+        new Promise<Feed>((resolve) => {
+          finish = resolve;
+          void existing;
+        }),
+    );
+
+    const first = addFeed(harness, {}, { showNotice: false });
+    await vi.waitFor(() => expect(harness.parseFeed).toHaveBeenCalledTimes(1));
+    const second = await addFeed(harness, {}, { showNotice: false });
+
+    expect(second).toBe(false);
+    expect(harness.parseFeed).toHaveBeenCalledTimes(1);
+    finish(createFeed("new", { url: NEW_URL }));
+    expect(await first).toBe(true);
+    expect(harness.plugin.settings.feeds.filter((feed) => feed.url === NEW_URL))
+      .toHaveLength(1);
+  });
+
   it("refuses a duplicate silently when showNotice is false", async () => {
     const harness = createHarness([createFeed("new", { url: NEW_URL })]);
 

@@ -39,6 +39,10 @@ import {
 } from "../services/article-scope";
 import { ArticleRenderer } from "../components/article-renderer";
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./reader-view";
+import { readerStart } from '../dashell/reader-chrome';
+import { ReadingWorkbench } from "../dashell/workbench";
+import { articleContent } from "../dashell/article-content";
+import { usesRssMediaPreview } from "../dashell/preview-routing";
 import { FeedManagerModal } from "../modals/feed-manager-modal";
 import { MobileNavigationModal } from "../modals/mobile-navigation-modal";
 import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
@@ -170,6 +174,9 @@ export class RssDashboardView extends ItemView {
   } | null = null;
   private inlineArticle: FeedItem | null = null;
   private articleRenderer: ArticleRenderer | null = null;
+  private readingWorkbench: ReadingWorkbench | null = null;
+  private learningOpenRequest = 0;
+  private readingRoot: HTMLElement | null = null;
   private lastClickAnchorKey: string | null = null;
 
   // ── Highlight match stats ─────────────────────────────────────────────────
@@ -221,7 +228,7 @@ export class RssDashboardView extends ItemView {
   }
 
   getDisplayText(): string {
-    return "RSS dashboard";
+    return "Dashell RSS";
   }
 
   getIcon(): string {
@@ -245,10 +252,12 @@ export class RssDashboardView extends ItemView {
   }
 
   public actionFocusSidebar(): void {
+    if (this.readingWorkbench) { this.readingWorkbench.focusList(); return; }
     this.getSidebarKeyboardController()?.focusSidebar();
   }
 
   public actionFocusReader(): void {
+    if (this.readingWorkbench) { this.readingWorkbench.focusReader(); return; }
     const readerLeaf =
       this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE)[0] ?? null;
     if (!readerLeaf) {
@@ -314,6 +323,7 @@ export class RssDashboardView extends ItemView {
    * @internal
    */
   public actionNavigateNext(options?: { open?: boolean }): void {
+    if (this.readingWorkbench) { this.readingWorkbench.navigate(1); return; }
     this.getSidebarKeyboardController()?.blurSidebarFocus();
     const allFilteredArticles = this.getFilteredArticles();
     const pageSize = this.getCurrentPageSize();
@@ -386,6 +396,7 @@ export class RssDashboardView extends ItemView {
    * @internal
    */
   public actionNavigatePrevious(options?: { open?: boolean }): void {
+    if (this.readingWorkbench) { this.readingWorkbench.navigate(-1); return; }
     this.getSidebarKeyboardController()?.blurSidebarFocus();
     const allFilteredArticles = this.getFilteredArticles();
     const pageSize = this.getCurrentPageSize();
@@ -457,6 +468,7 @@ export class RssDashboardView extends ItemView {
    * @internal
    */
   public actionNavigateCard(direction: "left" | "right" | "up" | "down"): void {
+    if (this.readingWorkbench) { this.readingWorkbench.navigate(direction === "up" || direction === "left" ? -1 : 1); return; }
     this.getSidebarKeyboardController()?.blurSidebarFocus();
     if (this.settings.viewStyle !== "card") return;
 
@@ -677,6 +689,7 @@ export class RssDashboardView extends ItemView {
   onOpen(): Promise<void> {
     this.listenForHotkeysInHostDocument();
     this.articleRenderer = new ArticleRenderer({
+      onLearningPreview: (container, item) => this.plugin.mountLearningPreview(container, item),
       app: this.app,
       component: this,
       settings: this.settings,
@@ -920,6 +933,7 @@ export class RssDashboardView extends ItemView {
   }
 
   render(): void {
+    if (this.readingWorkbench) { this.readingWorkbench.refresh(); return; }
     if (this.isRenderInProgress) {
       this.hasPendingRender = true;
       return;
@@ -2523,6 +2537,10 @@ export class RssDashboardView extends ItemView {
   }
 
   private async openSelectedArticle(article: FeedItem): Promise<void> {
+    if (this.plugin.dashellLearning && !usesRssMediaPreview(article)) {
+      await this.openArticleInConfiguredReaderLocation(article);
+      return;
+    }
     const readerLocation = this.getReaderViewLocation();
     const shouldForceCardTopAnchor =
       this.settings.viewStyle === "card" &&
@@ -2748,6 +2766,8 @@ export class RssDashboardView extends ItemView {
       false,
     );
 
+    this.readingWorkbench?.refresh();
+
     if (shouldRerender) {
       void this.render();
     } else {
@@ -2776,6 +2796,7 @@ export class RssDashboardView extends ItemView {
     if (!originalArticle) return;
 
     Object.assign(originalArticle, updates);
+    this.readingWorkbench?.refresh();
     if (updates.tags) {
       originalArticle.tags = updates.tags;
     }
@@ -3206,6 +3227,13 @@ export class RssDashboardView extends ItemView {
   }
 
   async onClose(): Promise<void> {
+    this.learningOpenRequest++;
+    this.containerEl.removeClass("rss-dashell-workbench-view");
+    this.readingWorkbench?.dispose();
+    this.readingWorkbench = null;
+    this.readingRoot?.remove();
+    this.readingRoot = null;
+    this.articleRenderer?.disposePreview();
     this.closeMobileSidebarModal();
     this.unbindViewportResizeListener();
     this.lastViewportMobileSidebarMode = null;
@@ -3779,6 +3807,26 @@ export class RssDashboardView extends ItemView {
   private async openArticleInConfiguredReaderLocation(
     article: FeedItem,
   ): Promise<void> {
+    const request = ++this.learningOpenRequest;
+    if (this.plugin.dashellLearning && !usesRssMediaPreview(article)) {
+      const controller = this.plugin.dashellLearning;
+      const notice = new Notice("正在准备学习资料…", 0);
+      const snapshot = structuredClone(article);
+      try {
+        await controller.act(async () => {
+          const material = await controller.open(snapshot, () => articleContent(
+            snapshot, this.containerEl.doc,
+            this.settings.corsProxyEnabled ? this.settings.corsProxyUrl : undefined,
+          ), () => request === this.learningOpenRequest);
+          if (!material || request !== this.learningOpenRequest) return;
+          await this.updateArticleStatus(article, {
+            saved: true, savedFilePath: material.localPath,
+            ...(this.settings.display.autoMarkReadOnOpen ? { read: true } : {}),
+          }, false);
+        });
+      } finally { notice.hide(); }
+      return;
+    }
     const readerLocation = this.getReaderViewLocation();
 
     if (readerLocation === "external-browser") {
@@ -3833,11 +3881,77 @@ export class RssDashboardView extends ItemView {
     await this.openArticleInNewTab(article);
   }
 
-  private renderInlineArticle(container: HTMLElement): void {
-    const header = container.createDiv({
-      cls: "rss-reader-header inline-reader-header",
+  private showReadingWorkbench(channel: string): ReadingWorkbench {
+    if (!this.readingWorkbench) {
+      const container = this.containerEl.children[1];
+      if (!container) throw new Error("RSS Dashboard view is not open.");
+      this.closeMobileSidebarModal();
+      if (this.dashboardContainer) this.dashboardContainer.hidden = true;
+      this.containerEl.addClass("rss-dashell-workbench-view");
+      this.readingRoot = container.createDiv();
+      this.mountReadingWorkbench(this.readingRoot);
+    }
+    this.readingWorkbench!.setChannel(channel);
+    return this.readingWorkbench!;
+  }
+
+  private returnToDashboard(): void {
+    this.readingWorkbench?.dispose();
+    this.readingWorkbench = null;
+    this.readingRoot?.remove();
+    this.readingRoot = null;
+    this.containerEl.removeClass("rss-dashell-workbench-view");
+    if (this.dashboardContainer) this.dashboardContainer.hidden = false;
+    this.articleList?.syncVisibleArticlesFromSource((article) =>
+      this.findBackingArticleForDisplayItem(article),
+    );
+    this.containerEl.focus({ preventScroll: true });
+  }
+
+  private getWorkbenchArticles(): FeedItem[] {
+    const items = this.applyKeywordFiltersWithStats(this.getAllArticles());
+    const direction = this.settings.articleSort === "oldest" ? 1 : -1;
+    return items.sort((a, b) => direction * (
+      getEffectiveDateMs(a, this.settings.useFirstSeenDateFallback) -
+      getEffectiveDateMs(b, this.settings.useFirstSeenDateFallback)
+    ));
+  }
+
+  private mountReadingWorkbench(root: HTMLElement): void {
+    this.readingWorkbench = new ReadingWorkbench({
+      root, app: this.app, settings: this.settings,
+      feeds: () => this.settings.feeds,
+      items: () => this.getWorkbenchArticles(),
+      back: () => this.returnToDashboard(),
+      renderArticle: async (body, article) => { await this.articleRenderer?.render(body, article, this.getRelatedItems(article)); },
+      disposeArticle: () => this.articleRenderer?.disposePreview(),
+      selectArticle: (article) => { this.selectedArticle = article; },
+      update: async (article, changes) => { await this.updateArticleStatus(article, changes, false); },
+      saveArticle: async (article) => {
+        if (article.saved && article.savedFilePath) {
+          const file = this.app.vault.getFileByPath(article.savedFilePath);
+          if (file) { await this.app.workspace.getLeaf("tab").openFile(file); return; }
+        }
+        await this.handleArticleSave(article);
+      },
+      saveExcerpt: async (article, text) => {
+        const quote = root.ownerDocument.win.createFragment().createEl("blockquote", { text });
+        const file = await this.saver.saveArticle({ ...article, guid: `${article.guid}-excerpt-${Date.now()}`, title: `${article.title} - 摘录`, content: quote.outerHTML, description: "" });
+        if (file) new Notice("摘录已保存。");
+      },
+      refresh: () => this.handleRefreshFeeds(),
+      manageFeeds: () => new FeedManagerModal(this.app, this.plugin).open(),
+      openSettings: () => { void this.plugin.openSettingsToTab("Display", "Reader"); },
+      savePreferences: () => this.plugin.saveSettings(),
     });
-    const backButton = header.createDiv({
+  }
+
+  private renderInlineArticle(container: HTMLElement): void {
+    container.addClass('rss-dashell-reader');
+    const header = container.createDiv({
+      cls: "rss-reader-header inline-reader-header rss-dashell-reader-toolbar",
+    });
+    const backButton = header.createEl('button', {
       cls: "rss-reader-back-button clickable-icon",
       attr: { "aria-label": "Back to dashboard" },
     });
@@ -3847,26 +3961,23 @@ export class RssDashboardView extends ItemView {
       void this.render();
     });
 
-    header.createDiv({
-      cls: "rss-reader-title",
-      text: this.inlineArticle?.title || "Article",
-    });
+    readerStart(header, () => this.actionNavigatePrevious({ open: true }), () => this.actionNavigateNext({ open: true }));
 
     if (this.inlineArticle) {
       const actions = header.createDiv({ cls: "rss-reader-actions" });
 
-      const saveButton = actions.createDiv({
+      const saveButton = actions.createEl('button', {
         cls: `rss-reader-action-button${this.inlineArticle.saved ? " saved" : ""}`,
         attr: { "aria-label": "Save article" },
       });
-      setIcon(saveButton, "save");
+      setIcon(saveButton, this.inlineArticle.saved ? 'file-check' : 'file-plus');
       saveButton.addEventListener("click", () => {
         if (this.inlineArticle) {
           void this.handleArticleSave(this.inlineArticle);
         }
       });
 
-      const readToggleButton = actions.createDiv({
+      const readToggleButton = actions.createEl('button', {
         cls: `rss-reader-action-button rss-reader-read-toggle${this.inlineArticle.read ? " read" : ""}`,
         attr: { "aria-label": "Mark as read/unread" },
       });
@@ -3884,7 +3995,7 @@ export class RssDashboardView extends ItemView {
         }
       });
 
-      const starToggleButton = actions.createDiv({
+      const starToggleButton = actions.createEl('button', {
         cls: `rss-reader-action-button rss-reader-star-toggle${this.inlineArticle.starred ? " starred" : ""}`,
         attr: {
           role: "button",
@@ -3895,7 +4006,7 @@ export class RssDashboardView extends ItemView {
       });
       setIcon(
         starToggleButton,
-        this.inlineArticle.starred ? "star" : "star-off",
+        "bookmark",
       );
       starToggleButton.addEventListener("click", () => {
         if (this.inlineArticle) {
@@ -3913,7 +4024,7 @@ export class RssDashboardView extends ItemView {
         }
       });
 
-      const browserButton = actions.createDiv({
+      const browserButton = actions.createEl('button', {
         cls: "rss-reader-action-button",
         attr: { "aria-label": "Open in browser" },
       });
@@ -4012,6 +4123,10 @@ export class RssDashboardView extends ItemView {
     article?: FeedItem,
   ): Promise<void> {
     try {
+      if (this.plugin.dashellLearning && article && !usesRssMediaPreview(article)) {
+        await this.openArticleInConfiguredReaderLocation({ ...article, savedFilePath: file.path });
+        return;
+      }
       const location = this.getSavedArticleOpenLocation();
 
       if (location === "inline" && article) {

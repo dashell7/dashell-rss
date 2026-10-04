@@ -1,4 +1,7 @@
+import type { SourceMetadata } from '../dashell/model';
+import type { WorkspacePreferences } from "../dashell/workbench-state";
 export interface FeedItem {
+  dashell?: SourceMetadata;
   title: string;
   link: string;
   /**
@@ -580,6 +583,7 @@ export interface RssDashboardSettings {
   customProxyUrls: string[];
 
   readerFormat: ReaderFormatSettings;
+  dashellWorkspace?: WorkspacePreferences;
 
   media: MediaSettings;
   articleSaving: ArticleSavingSettings;
@@ -627,7 +631,7 @@ export interface RssDashboardSettings {
   storageFolder: string;
   storageSchemaVersion: number;
   /**
-   * Metadata storage mode: "plugin-default" uses .obsidian/plugins/rss-dashboard/data.json,
+   * Metadata storage mode: "plugin-default" uses this plugin's data.json,
    * "vault-location" uses a user-configured vault folder.
    */
   metadataStorageMode: "plugin-default" | "vault-location";

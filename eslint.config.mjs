@@ -151,7 +151,7 @@ export default defineConfig([
         "warn",
         {
           acronyms: ["OPML", "XML", "API", "CORS", "URI", "URL", "RSS"],
-          brands: ["Obsidian", "Inoreader", "RSS Dashboard"],
+          brands: ["Obsidian", "Inoreader", "RSS Dashboard", "Dashell Reader", "Dashell Player", "Dashell RSS", "Spaced Repetition"],
           allowAutoFix: true,
         },
       ],
@@ -194,8 +194,8 @@ export default defineConfig([
       "obsidianmd/ui/sentence-case": [
         "error",
         {
-          acronyms: ["OPML", "XML", "API", "CORS", "URI", "URL", "RSS", "JSON"],
-          brands: ["Obsidian", "Inoreader"],
+          acronyms: ["OPML", "XML", "API", "CORS", "URI", "URL", "RSS", "JSON", "MB"],
+          brands: ["Obsidian", "Inoreader", "Dashell Reader", "Dashell Player", "Dashell RSS", "Spaced Repetition"],
           ignoreRegex: [
             "^\\d+(?:\\.\\d+)?x$",
             "^\\d+ (?:day|days|week|weeks|month|months|year|years|item|items|minute|minutes|hour|hours)$",

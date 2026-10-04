@@ -30,13 +30,13 @@ import { DEFAULT_SETTINGS } from "../../../src/types/types";
 
 function createManifest(app: MockApp): PluginManifest {
   return {
-    id: "rss-dashboard",
-    name: "RSS Dashboard",
-    version: "2.7.0",
+    id: "dashell-rss",
+    name: "Dashell RSS",
+    version: "2.7.1-dashell.1",
     minAppVersion: "1.8.7",
     author: "Test",
     description: "Test plugin",
-    dir: `${app.vault.configDir}/plugins/rss-dashboard`,
+    dir: `${app.vault.configDir}/plugins/dashell-rss`,
   };
 }
 
@@ -51,6 +51,9 @@ interface Harness {
   plugin: RssDashboardPlugin;
   /** What `registerObsidianProtocolHandler` was given, for the plugin's id. */
   handler: (params: Params) => unknown;
+  /** Compatibility route for links created before the plugin was renamed. */
+  legacyHandler: (params: Params) => unknown;
+  protocolIds: string[];
   /** Notices, errors, `activateView` calls and modal opens, oldest first. */
   events: string[];
   /** Every Add feed modal a link opened. */
@@ -109,13 +112,19 @@ async function createHarness(): Promise<Harness> {
   await plugin.onload();
 
   const call = registerProtocolHandler.mock.calls.find(
-    ([action]) => action === "rss-dashboard",
+    ([action]) => action === "dashell-rss",
   );
   if (!call) throw new Error("onload did not register the protocol handler");
+  const legacyCall = registerProtocolHandler.mock.calls.find(
+    ([action]) => action === "rss-dashboard",
+  );
+  if (!legacyCall) throw new Error("onload did not register the legacy protocol handler");
 
   const harness: Harness = {
     plugin,
     handler: call[1] as (params: Params) => unknown,
+    legacyHandler: legacyCall[1] as (params: Params) => unknown,
+    protocolIds: registerProtocolHandler.mock.calls.map(([action]) => String(action)),
     events,
     modals,
     activateView,
@@ -157,8 +166,10 @@ afterEach(() => {
 });
 
 describe("URI action: which action a link asks for", () => {
-  it("registers one protocol handler under the plugin id, and returns before the action finishes", async () => {
+  it("registers the plugin and legacy protocol routes, and returns before the action finishes", async () => {
     const harness = await createHarness();
+
+    expect(harness.protocolIds).toEqual(["dashell-rss", "rss-dashboard"]);
 
     // The handler starts the action and returns; it never hands back a promise.
     expect(
@@ -210,6 +221,23 @@ describe("URI action: which action a link asks for", () => {
 
     expect(onlyModal(harness).initialUrl).toBe(FEED_URL);
     expect(notices(harness)).toEqual([]);
+  });
+
+  it("keeps old rss-dashboard links working after the plugin ID changes", async () => {
+    const harness = await createHarness();
+
+    harness.legacyHandler({ action: "rss-dashboard", url: FEED_URL });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(onlyModal(harness).initialUrl).toBe(FEED_URL);
+  });
+
+  it("accepts the new plugin route without regard to case", async () => {
+    const harness = await createHarness();
+
+    await open(harness, { action: "DASHELL-RSS", url: FEED_URL });
+
+    expect(onlyModal(harness).initialUrl).toBe(FEED_URL);
   });
 
   it("matches the route against the plugin id without regard to case", async () => {

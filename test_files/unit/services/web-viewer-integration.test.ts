@@ -1,4 +1,5 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { englishDateLocale } from '../helpers/date-locale';
 import { TFile, moment } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { sanitizeFilename } from "../../../src/services/article-saver";
@@ -14,6 +15,7 @@ type MomentFactory = (input?: Date) => { format: (fmt: string) => string };
 const callMoment = moment as unknown as MomentFactory;
 
 describe("Phase 8 - WebViewerIntegration", () => {
+  beforeEach(() => { englishDateLocale(); });
   beforeAll(() => {
     installObsidianDomPolyfills();
   });

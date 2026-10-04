@@ -9,6 +9,7 @@ import {
   Notice,
   Setting,
   normalizePath,
+  type PluginManifest,
   type WorkspaceLeaf,
 } from "obsidian";
 import type { ImportResult } from "../../services/import-export-service";
@@ -37,6 +38,7 @@ import {
 
 interface StorageSettingsPlugin {
   app: App;
+  manifest: Pick<PluginManifest, "id" | "dir">;
   settingTab: { display(): void } | null;
   settings: RssDashboardSettings;
   saveSettings(): Promise<void>;
@@ -203,7 +205,7 @@ export function renderStorageSettingsTab(
     }
   };
 
-  const pluginDefaultMetadataFilePath = `${plugin.app.vault.configDir}/plugins/rss-dashboard/data.json`;
+  const pluginDefaultMetadataFilePath = `${plugin.manifest.dir ?? `${plugin.app.vault.configDir}/plugins/${plugin.manifest.id}`}/data.json`;
   let pendingMetadataStorageFolder =
     plugin.settings.metadataStorageMode === "vault-location"
       ? plugin.settings.metadataStorageFolder

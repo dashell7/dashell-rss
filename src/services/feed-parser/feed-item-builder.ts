@@ -322,6 +322,7 @@ function buildUpdatedItemItunes(
 
 type UpdatedItemMedia = Pick<
   FeedItem,
+  | "dashell"
   | "enclosure"
   | "ieee"
   | "audioUrl"
@@ -337,6 +338,7 @@ function buildUpdatedItemMedia(
 ): UpdatedItemMedia {
   const { isPodcast, audioUrl, enclosure } = audio;
   return {
+    dashell: item.dashell ?? existingItem.dashell,
     enclosure: enclosure ? enclosure : existingItem.enclosure,
     ieee: item.ieee || existingItem.ieee,
     audioUrl: audioUrl ? audioUrl : existingItem.audioUrl,
@@ -448,6 +450,7 @@ function buildNewItemItunes(
 
 type NewItemMedia = Pick<
   FeedItem,
+  | "dashell"
   | "enclosure"
   | "ieee"
   | "audioUrl"
@@ -457,6 +460,7 @@ type NewItemMedia = Pick<
 
 function buildNewItemMedia(item: ParsedItem, audio: ItemAudio): NewItemMedia {
   return {
+    dashell: item.dashell,
     enclosure: audio.enclosure,
     ieee: item.ieee,
     audioUrl: audio.audioUrl,
