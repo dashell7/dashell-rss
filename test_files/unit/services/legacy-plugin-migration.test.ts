@@ -9,7 +9,7 @@ function manifest(app: ReturnType<typeof App.createMock>): PluginManifest {
   return {
     id: "dashell-rss",
     name: "Dashell RSS",
-    version: "2.7.1-dashell.1",
+    version: "2.7.2-dashell.1",
     minAppVersion: "1.8.7",
     description: "",
     author: "dashell",

@@ -7,7 +7,7 @@ The dedicated Dashell RSS repository has not been created yet; the current
 candidate is local. Upstream documentation follows; source and license notices
 are preserved in [NOTICE.md](NOTICE.md).
 
-This local candidate uses plugin ID `dashell-rss`, version `2.7.1-dashell.1`.
+This local candidate uses plugin ID `dashell-rss`, version `2.7.2-dashell.1`.
 Install its built `main.js`, `manifest.json`, and `styles.css` into
 `<vault>/.obsidian/plugins/dashell-rss/` (use your vault's actual configuration
 folder). Disable the customized `rss-dashboard` instance before enabling
