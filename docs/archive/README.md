@@ -7,6 +7,12 @@ records the documentation classification.
 
 ## Versioned plans
 
+### 2.7.2
+
+| Plan | Completed | Issue | Implementation |
+| --- | --- | --- | --- |
+| [Standardize Article Star Toggle Hover Styling](plans/v2.7.2/684-standardize-article-star-toggle-hover.md) | 2026-10-02 | [GH Issue #684](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/684) | [PR #690](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/690) |
+
 ### 2.7.0
 
 | Plan | Completed | Issue | Implementation |
@@ -81,12 +87,6 @@ records the documentation classification.
 ### 2.2.0
 
 - [Test coverage improvement](plans/v2.2.0/test-coverage-improvement.md) - completed 2026-04-07 (`08030a7`).
-
-## Unreleased plans
-
-| Plan | Completed | Issue | Implementation |
-| --- | --- | --- | --- |
-| [Standardize Article Star Toggle Hover Styling](plans/unreleased/684-standardize-article-star-toggle-hover.md) | 2026-10-02 | [GH Issue #684](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/684) | [PR #690](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/690) |
 
 ## Unshipped plans
 

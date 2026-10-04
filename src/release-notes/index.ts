@@ -1,4 +1,5 @@
 import noteFor27 from "./notes/2.7.md";
+import noteFor272 from "./notes/2.7.2.md";
 
 export interface ReleaseNoteCatalog {
   releaseLine: Readonly<Record<string, string>>;
@@ -14,7 +15,9 @@ const RELEASE_LINE_NOTES: Readonly<Record<string, string>> = {
   "2.7": noteFor27,
 };
 
-const EXACT_VERSION_NOTES: Readonly<Record<string, string>> = {};
+const EXACT_VERSION_NOTES: Readonly<Record<string, string>> = {
+  "2.7.2": noteFor272,
+};
 
 const RELEASE_NOTE_CATALOG: ReleaseNoteCatalog = {
   releaseLine: RELEASE_LINE_NOTES,

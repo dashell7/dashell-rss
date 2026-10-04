@@ -1,9 +1,16 @@
-## Unreleased
+## 2.7.2 - October 4, 2026
+
+For a user-facing overview, see the
+[Dashell RSS 2.7.2 release notes](docs/releases/2.7.2.md).
 
 ### Features
 
 - Sidebar search now says when nothing matched instead of leaving the sidebar blank. A search with no matching feeds or folders shows **0 results** and **No matches found.**, as Obsidian's own search does, and the message clears when the query changes or the search is cleared or closed. [GH Issue #678](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/678)
-- Local Dashell candidate: preserves the RSS Dashboard home and feed filters. Article cards save once and open directly in Dashell Reader; repeat opens reuse local files and resume the last supplied language version. Podcasts and videos retain RSS Dashboard's native previews. Reader owns reading appearance, lookup and AI configuration. See [implementation and scope](docs/DASHELL-IMPLEMENTATION.md) and [validation](docs/DASHELL-VERIFICATION-2026-10-04.md).
+- Dashell RSS keeps the RSS Dashboard home and feed filters while handing text
+  articles to Dashell Reader for local reading. Reopens reuse saved files and
+  restore the latest supplied language version; podcasts and videos retain RSS
+  Dashboard's native previews. See [implementation and scope](docs/DASHELL-IMPLEMENTATION.md)
+  and [validation](docs/DASHELL-VERIFICATION-2026-10-04.md).
 
 ### Fixes
 - Fixed dashboard article star buttons appearing circular; their backgrounds now have the same rounded rectangle corners as neighboring action icons.
