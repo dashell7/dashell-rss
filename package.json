@@ -1,6 +1,6 @@
 {
   "name": "dashell-rss",
-  "version": "2.7.2-dashell.1",
+  "version": "2.7.2",
   "description": "RSS dashboard for Obsidian",
   "main": "main.js",
   "type": "commonjs",
