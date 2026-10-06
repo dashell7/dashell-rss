@@ -1,22 +1,26 @@
 # Dashell RSS
 
-Maintained by [dashell](https://github.com/dashell7). This customization integrates
-local reading materials with [Dashell Reader](https://github.com/dashell7/qiaomu-reader-english)
-and [Dashell Player](https://github.com/dashell7/obsidian-langplayer).
-This customized build is maintained in the Dashell RSS repository. Upstream
-documentation follows; source and license notices are preserved in
-[NOTICE.md](NOTICE.md).
+Maintained by [dashell](https://github.com/dashell7). [Source](https://github.com/dashell7/dashell-rss) · [Issues](https://github.com/dashell7/dashell-rss/issues) · [Latest release 2.7.3](https://github.com/dashell7/dashell-rss/releases/latest).
 
-This release uses plugin ID `dashell-rss`, version `2.7.3`. Install its built
-`main.js`, `manifest.json`, and `styles.css` into
-`<vault>/.obsidian/plugins/dashell-rss/` (use your vault's actual configuration
-folder). Disable the upstream `rss-dashboard` plugin before enabling Dashell
-RSS. Existing Dashell RSS installations update in place. First launch in the
-new folder copies settings, feed shards, article state, learning records and
-backups from the earlier `dshell-rss` or `rss-dashboard` folder; source files
-remain available for rollback and custom vault storage folders stay unchanged.
-The upstream community-plugin installation steps below install the original
-RSS Dashboard, not this customized build.
+Dashell RSS handles feed subscriptions, previews, and local saving of learning materials. [Dashell Reader](https://github.com/dashell7/dashell-reader) is for text reading and dictionary lookup; [Dashell Player](https://github.com/dashell7/dashell-player) is for audio, video, subtitles, and dictation. Install them separately or combine them for a local English-learning workflow.
+
+This repository is a customization of RSS Dashboard. The original project documentation follows the Dashell-specific instructions below; source and license notices are preserved in [NOTICE.md](NOTICE.md).
+
+## Install Dashell RSS
+
+The current release is **2.7.3**. Dashell RSS is distributed from [GitHub Releases](https://github.com/dashell7/dashell-rss/releases) and is not the upstream RSS Dashboard Community Plugins listing.
+
+### BRAT
+
+1. Install and enable **BRAT** from Obsidian Community Plugins.
+2. In BRAT, choose **Add beta plugin** and enter `dashell7/dashell-rss`.
+3. Install and enable **Dashell RSS** in Community plugins.
+
+### Manual install
+
+Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/dashell7/dashell-rss/releases/latest), then copy them into `<vault>/.obsidian/plugins/dashell-rss/` using your vault's actual configuration folder. Disable the upstream `rss-dashboard` plugin before enabling Dashell RSS.
+
+The plugin ID is `dashell-rss`. On first launch, it copies settings, feed shards, article state, learning records, and backups from an earlier `dshell-rss` or `rss-dashboard` folder. Source files remain for rollback, and custom vault storage folders stay unchanged. Existing Dashell RSS installations update in place.
 
 ## Dashell RSS features
 
@@ -94,7 +98,9 @@ Version 2.2.0 demo (core experience remains similar).
 
 [![What's New in 2.2.0?](assets/2.2/video_thumbnail/2.2_Dashboard_video_thumbnail_youtube_icon.png)](https://www.youtube.com/watch?v=Lq2TRCZlqlQ)
 
-## Installation
+## Install the upstream RSS Dashboard
+
+The following Community Plugins steps install the original **RSS Dashboard**, not Dashell RSS. Use the Dashell installation instructions above to install this customization.
 
 1. Open **Settings** in Obsidian.
 2. Go to **Community plugins** → disable **Restricted mode** (if enabled).
