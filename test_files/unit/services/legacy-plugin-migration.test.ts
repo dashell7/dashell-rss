@@ -4,16 +4,20 @@ import { migrateLegacyPluginData } from "../../../src/services/legacy-plugin-mig
 
 const legacyRoot = ".vault-config/plugins/rss-dashboard";
 const targetRoot = ".vault-config/plugins/dashell-rss";
+const previousDashellRoot = ".vault-config/plugins/dshell-rss";
 
-function manifest(app: ReturnType<typeof App.createMock>): PluginManifest {
+function manifest(
+  app: ReturnType<typeof App.createMock>,
+  id = "dashell-rss",
+): PluginManifest {
   return {
-    id: "dashell-rss",
+    id,
     name: "Dashell RSS",
-    version: "2.7.2-dashell.1",
+    version: "2.7.3",
     minAppVersion: "1.8.7",
     description: "",
     author: "dashell",
-    dir: `${app.vault.configDir}/plugins/dashell-rss`,
+    dir: `${app.vault.configDir}/plugins/${id}`,
   };
 }
 
@@ -180,5 +184,37 @@ describe("legacy plugin data migration", () => {
       copiedFiles: 0,
     });
     expect(await app.vault.adapter.read(`${targetRoot}/data.json`)).toBe(edited);
+  });
+
+  it("copies previous Dashell RSS data into the final plugin folder and keeps the source", async () => {
+    const app = App.createMock();
+    const oldSettings = JSON.stringify({
+      storageFolder: `${previousDashellRoot}/data/feeds`,
+      metadataStorageFolder: `${previousDashellRoot}/data`,
+    });
+    await write(app, `${previousDashellRoot}/data.json`, oldSettings);
+    await write(app, `${previousDashellRoot}/data/feeds/feed-1.json`, "feed-data");
+    await write(app, `${previousDashellRoot}/dashell-learning.json`, "learning-data");
+
+    const result = await migrateLegacyPluginData(
+      app,
+      manifest(app),
+      "dshell-rss",
+    );
+
+    expect(result).toEqual({ status: "copied", copiedFiles: 3 });
+    const migratedSettings = JSON.parse(
+      await app.vault.adapter.read(`${targetRoot}/data.json`),
+    ) as Record<string, unknown>;
+    expect(migratedSettings.storageFolder).toBe(`${targetRoot}/data/feeds`);
+    expect(migratedSettings.metadataStorageFolder).toBe(`${targetRoot}/data`);
+    expect(await app.vault.adapter.read(`${targetRoot}/data/feeds/feed-1.json`))
+      .toBe("feed-data");
+    expect(await app.vault.adapter.read(`${targetRoot}/dashell-learning.json`))
+      .toBe("learning-data");
+    expect(await app.vault.adapter.read(`${previousDashellRoot}/data.json`))
+      .toBe(oldSettings);
+    expect(await app.vault.adapter.exists(`${previousDashellRoot}/data/feeds/feed-1.json`))
+      .toBe(true);
   });
 });

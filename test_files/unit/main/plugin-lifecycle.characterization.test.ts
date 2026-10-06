@@ -118,6 +118,8 @@ const STARTUP_SEQUENCE = [
   // What's New check for a dashboard restored as the active tab.
   "workspace.onLayoutReady",
   "registerObsidianProtocolHandler:rss-dashboard",
+  "registerObsidianProtocolHandler:dashell-rss",
+  "registerObsidianProtocolHandler:dshell-rss",
   "registerView:rss-dashboard-view",
   "registerView:rss-discover-view",
   "registerView:rss-reader-view",
@@ -622,6 +624,8 @@ describe("onload steps (characterization)", () => {
         "registerEvent",
         "workspace.onLayoutReady",
         "registerObsidianProtocolHandler:rss-dashboard",
+        "registerObsidianProtocolHandler:dashell-rss",
+        "registerObsidianProtocolHandler:dshell-rss",
         "registerView:rss-dashboard-view",
         "registerView:rss-discover-view",
         "registerView:rss-reader-view",

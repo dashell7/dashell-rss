@@ -163,13 +163,34 @@ async function ensureParentFolder(app: App, path: string): Promise<void> {
   if (parent && !(await adapter.exists(parent))) await adapter.mkdir(parent);
 }
 
+async function hasCompletedMigration(
+  adapter: Pick<App["vault"]["adapter"], "exists" | "read">,
+  markerPath: string,
+  sourceRoot: string,
+): Promise<boolean> {
+  if (!(await adapter.exists(markerPath))) return false;
+  const marker: unknown = JSON.parse(await adapter.read(markerPath));
+  if (
+    !marker ||
+    typeof marker !== "object" ||
+    !("version" in marker) ||
+    marker.version !== 1 ||
+    !("sourceRoot" in marker) ||
+    marker.sourceRoot !== sourceRoot
+  ) {
+    throw new InvalidLegacyDataError("Invalid legacy migration marker");
+  }
+  return true;
+}
+
 export async function migrateLegacyPluginData(
   app: App,
   manifest: PluginManifest,
+  legacyPluginId: "rss-dashboard" | "dshell-rss" = LEGACY_PLUGIN_ID,
 ): Promise<LegacyPluginMigrationResult> {
   const destinationRoot = pluginDirectory(app, manifest);
   const sourceRoot = normalizePath(
-    `${app.vault.configDir}/plugins/${LEGACY_PLUGIN_ID}`,
+    `${app.vault.configDir}/plugins/${legacyPluginId}`,
   );
   if (sourceRoot.toLowerCase() === destinationRoot.toLowerCase()) {
     return { status: "no-legacy-data", copiedFiles: 0 };
@@ -177,14 +198,11 @@ export async function migrateLegacyPluginData(
 
   let copiedFiles = 0;
   try {
-    const markerPath = normalizePath(`${destinationRoot}/${MIGRATION_MARKER}`);
-    if (await app.vault.adapter.exists(markerPath)) {
-      const marker: unknown = JSON.parse(await app.vault.adapter.read(markerPath));
-      if (!marker || typeof marker !== "object" ||
-          !("version" in marker) || marker.version !== 1 ||
-          !("sourceRoot" in marker) || marker.sourceRoot !== sourceRoot) {
-        throw new InvalidLegacyDataError("Invalid legacy migration marker");
-      }
+    const markerName = legacyPluginId === LEGACY_PLUGIN_ID
+      ? MIGRATION_MARKER
+      : "legacy-dshell-rss-id-migration.json";
+    const markerPath = normalizePath(`${destinationRoot}/${markerName}`);
+    if (await hasCompletedMigration(app.vault.adapter, markerPath, sourceRoot)) {
       return { status: "already-migrated", copiedFiles: 0 };
     }
     if (!(await app.vault.adapter.exists(sourceRoot))) {

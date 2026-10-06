@@ -1,9 +1,9 @@
 {
   "id": "dashell-rss",
   "name": "Dashell RSS",
-  "version": "2.7.2-dashell.1",
+  "version": "2.7.3",
   "minAppVersion": "1.8.7",
-  "description": "RSS Dashboard customized for previewing, downloading and learning resources with Dashell Reader and Player.",
+  "description": "Subscribe to feeds, preview articles and media, save learning materials, and open articles in Dashell Reader.",
   "author": "dashell",
   "authorUrl": "https://github.com/dashell7",
   "isDesktopOnly": false

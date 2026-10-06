@@ -3,25 +3,39 @@
 Maintained by [dashell](https://github.com/dashell7). This customization integrates
 local reading materials with [Dashell Reader](https://github.com/dashell7/qiaomu-reader-english)
 and [Dashell Player](https://github.com/dashell7/obsidian-langplayer).
-The dedicated Dashell RSS repository has not been created yet; the current
-candidate is local. Upstream documentation follows; source and license notices
-are preserved in [NOTICE.md](NOTICE.md).
+This customized build is maintained in the Dashell RSS repository. Upstream
+documentation follows; source and license notices are preserved in
+[NOTICE.md](NOTICE.md).
 
-This local candidate uses plugin ID `dashell-rss`, version `2.7.2-dashell.1`.
-Install its built `main.js`, `manifest.json`, and `styles.css` into
+This release uses plugin ID `dashell-rss`, version `2.7.3`. Install its built
+`main.js`, `manifest.json`, and `styles.css` into
 `<vault>/.obsidian/plugins/dashell-rss/` (use your vault's actual configuration
-folder). Disable the customized `rss-dashboard` instance before enabling
-Dashell RSS. First launch copies its settings, feed shards, article state,
-learning records and backups. The old plugin directory is retained for rollback;
-custom vault storage folders stay unchanged. Updates must come from Dashell's
-own artifacts. The upstream community-plugin installation steps below install
-the original RSS Dashboard, not this customized candidate.
+folder). Disable the upstream `rss-dashboard` plugin before enabling Dashell
+RSS. Existing Dashell RSS installations update in place. First launch in the
+new folder copies settings, feed shards, article state, learning records and
+backups from the earlier `dshell-rss` or `rss-dashboard` folder; source files
+remain available for rollback and custom vault storage folders stay unchanged.
+The upstream community-plugin installation steps below install the original
+RSS Dashboard, not this customized build.
+
+## Dashell RSS features
+
+Dashell RSS keeps the RSS Dashboard subscription workflow and connects saved
+articles to the local English-learning workflow:
+
+- Subscribe to RSS, Atom and JSON feeds, podcasts, and YouTube channels; organize and filter feeds in the dashboard.
+- Preview articles in the built-in reader, and keep the existing RSS preview for podcasts and videos.
+- Save articles as Markdown for Dashell Reader, with normalized filenames and ordinary text in linked passages so hover and click lookup can work.
+- Preserve supplied original, translated, and rewritten article versions; Dashell Reader remembers reading progress separately for each version.
+- Keep reading appearance, dictionary lookup, AI, and review-card settings in Dashell Reader; RSS handles feed discovery, previews, and local saving.
+
+The following README content describes the upstream RSS Dashboard features retained by this customization. Original source and license notices are in [NOTICE.md](NOTICE.md).
 
 <div align="center">
   <img src="assets/branding/logo.png" alt="RSS Dashboard Logo" width="180" />
 </div>
 
-# RSS Dashboard
+## Upstream RSS Dashboard features
 
 Only the feeds you need. Stream the world's knowledge into your vault: RSS, podcasts, YouTube, and more, all in one dashboard.
 

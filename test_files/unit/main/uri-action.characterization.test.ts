@@ -53,6 +53,8 @@ interface Harness {
   handler: (params: Params) => unknown;
   /** Compatibility route for links created before the plugin was renamed. */
   legacyHandler: (params: Params) => unknown;
+  /** Compatibility route for links using the previous Dashell plugin ID. */
+  previousDashellHandler: (params: Params) => unknown;
   protocolIds: string[];
   /** Notices, errors, `activateView` calls and modal opens, oldest first. */
   events: string[];
@@ -119,11 +121,16 @@ async function createHarness(): Promise<Harness> {
     ([action]) => action === "rss-dashboard",
   );
   if (!legacyCall) throw new Error("onload did not register the legacy protocol handler");
+  const previousDashellCall = registerProtocolHandler.mock.calls.find(
+    ([action]) => action === "dshell-rss",
+  );
+  if (!previousDashellCall) throw new Error("onload did not register the previous Dashell protocol handler");
 
   const harness: Harness = {
     plugin,
     handler: call[1] as (params: Params) => unknown,
     legacyHandler: legacyCall[1] as (params: Params) => unknown,
+    previousDashellHandler: previousDashellCall[1] as (params: Params) => unknown,
     protocolIds: registerProtocolHandler.mock.calls.map(([action]) => String(action)),
     events,
     modals,
@@ -169,7 +176,7 @@ describe("URI action: which action a link asks for", () => {
   it("registers the plugin and legacy protocol routes, and returns before the action finishes", async () => {
     const harness = await createHarness();
 
-    expect(harness.protocolIds).toEqual(["dashell-rss", "rss-dashboard"]);
+    expect(harness.protocolIds).toEqual(["dashell-rss", "dshell-rss", "rss-dashboard"]);
 
     // The handler starts the action and returns; it never hands back a promise.
     expect(
@@ -178,6 +185,15 @@ describe("URI action: which action a link asks for", () => {
     expect(harness.modals).toHaveLength(0);
 
     await vi.advanceTimersByTimeAsync(0);
+    expect(harness.modals).toHaveLength(1);
+  });
+
+  it("accepts links created with the previous Dashell plugin ID", async () => {
+    const harness = await createHarness();
+
+    harness.previousDashellHandler({ action: "add-feed", url: FEED_URL });
+    await vi.advanceTimersByTimeAsync(0);
+
     expect(harness.modals).toHaveLength(1);
   });
 

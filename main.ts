@@ -254,7 +254,7 @@ export default class RssDashboardPlugin extends Plugin {
     });
     this.uriActionHandler = new UriActionHandler({
       pluginId: manifest.id,
-      legacyPluginIds: ["rss-dashboard"],
+      legacyPluginIds: ["dashell-rss", "dshell-rss", "rss-dashboard"],
       openAddFeed: (request) => this.openAddFeedFromUri(request),
       getDefaultRssFolder: () => this.settings.media.defaultRssFolder,
     });
@@ -855,14 +855,21 @@ export default class RssDashboardPlugin extends Plugin {
       this.vaultAbsolutePath = adapter.getFullPath(".");
     }
 
-    const migration = await migrateLegacyPluginData(this.app, this.manifest);
+    const previousDashellMigration = await migrateLegacyPluginData(
+      this.app,
+      this.manifest,
+      "dshell-rss",
+    );
+    const migration = previousDashellMigration.status === "no-legacy-data"
+      ? await migrateLegacyPluginData(this.app, this.manifest, "rss-dashboard")
+      : previousDashellMigration;
     if (migration.status === "copied") {
       new Notice(
-        "Dashell RSS copied your RSS dashboard settings, feed data, and learning records. The original files remain available for rollback.",
+        "Dashell RSS copied your previous plugin settings, feed data, and learning records. The original files remain available for rollback.",
       );
     } else if (["conflict", "invalid", "failed"].includes(migration.status)) {
       new Notice(
-        "Dashell RSS could not safely copy the previous RSS dashboard data. The original files are unchanged; check the plugin data folders before retrying.",
+        "Dashell RSS could not safely copy the previous plugin data. The original files are unchanged; check the plugin data folders before retrying.",
       );
       throw new Error(`Dashell RSS legacy data migration ${migration.status}`);
     }
@@ -926,7 +933,12 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private registerProtocolHandler(): void {
-    for (const protocolId of new Set([this.manifest.id, "rss-dashboard"])) {
+    for (const protocolId of new Set([
+      this.manifest.id,
+      "dashell-rss",
+      "dshell-rss",
+      "rss-dashboard",
+    ])) {
       this.registerObsidianProtocolHandler(
         protocolId,
         (params: ObsidianProtocolData) => {
