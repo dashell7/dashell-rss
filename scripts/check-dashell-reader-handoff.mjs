@@ -12,7 +12,7 @@ const qaUrl = "https://dashell-handoff-qa.invalid/rss";
 let result;
 if (stage === "baseline") {
   if (fs.existsSync(baselinePath)) throw new Error("Existing baseline must be cleaned up first.");
-  const baseline = run(`(()=>{const p=app.plugins.getPlugin('dashell-rss'),r=app.plugins.getPlugin('qiaomu-reader-english');return {settings:structuredClone(p.settings),learning:structuredClone(p.dashellLearning.store.state),readerSettings:structuredClone(r.settings),readerLastBook:r._lastBookPath,layout:app.workspace.getLayout(),theme:app.customCss.theme};})()`);
+  const baseline = run(`(()=>{const p=app.plugins.getPlugin('dashell-rss'),r=app.plugins.getPlugin('dashell-reader');return {settings:structuredClone(p.settings),learning:structuredClone(p.dashellLearning.store.state),readerSettings:structuredClone(r.settings),readerLastBook:r._lastBookPath,layout:app.workspace.getLayout(),theme:app.customCss.theme};})()`);
   fs.writeFileSync(baselinePath, JSON.stringify(baseline));
   result = { backedUp: true, feedCount: baseline.settings.feeds.length };
 } else if (stage === "card") {
@@ -22,7 +22,7 @@ if (stage === "baseline") {
     await c.store.transact(s=>{s.preferences.folder='${qaFolder}';});
     const content=Array.from({length:35},(_,i)=>'<p>Reading practice '+(i+1)+'. Learning a language takes patience and curiosity. A little reading every day makes difficult ideas easier to understand.</p>').join('');
     const article={guid:'dashell-handoff-qa-20261004',title:'Dashell Reader 联动验证',link:'https://dashell-handoff-qa.invalid/article',feedUrl:'${qaUrl}',feedTitle:'Dashell Handoff QA 20261004',pubDate:'2026-10-04',coverImage:'',description:'QA article',content,dashell:{id:'dashell-handoff-qa-20261004',translation:'<p>每天阅读一点，逐渐理解复杂的内容。</p>',rewrite:'Read a little every day. Keep learning with curiosity.'}};
-    const material=await c.ensure(article);const readerPlugin=app.plugins.getPlugin('qiaomu-reader-english');
+    const material=await c.ensure(article);const readerPlugin=app.plugins.getPlugin('dashell-reader');
     for(const name of [article.title,article.title+' - 译文',article.title+' - 改写'])(readerPlugin.settings.bookNotePrompted||={})['${qaFolder}/'+article.title+'-'+material.id.slice(0,10)+'/'+name+'.md']=true;
     p.settings.feeds.push({title:article.feedTitle,url:'${qaUrl}',folder:'',items:[article],lastUpdated:0});
     await p.activateView();const v=await p.getActiveDashboardView();v.currentFeed=null;v.currentFolder=null;v.render();await app.workspace.revealLeaf(v.leaf);
@@ -64,12 +64,12 @@ if (stage === "baseline") {
   })()`);
 } else if (stage === "reader-reload") {
   result = run(`(async()=>{
-    const p=app.plugins.getPlugin('dashell-rss'),old=app.plugins.getPlugin('qiaomu-reader-english');
+    const p=app.plugins.getPlugin('dashell-rss'),old=app.plugins.getPlugin('dashell-reader');
     const record=p.dashellLearning.store.state.materials.find(m=>m.title==='Dashell Reader 联动验证');
     const target=record.localPath.replace(/\\.md$/,' - 译文.md');
     const progress=JSON.parse(JSON.stringify(old.progress[target]));
-    await app.plugins.unloadPlugin('qiaomu-reader-english');await old._progressQueue.drain();await old._localDataQueue.drain();await app.plugins.loadPlugin('qiaomu-reader-english');
-    const reader=app.plugins.getPlugin('qiaomu-reader-english');
+    await app.plugins.unloadPlugin('dashell-reader');await old._progressQueue.drain();await old._localDataQueue.drain();await app.plugins.loadPlugin('dashell-reader');
+    const reader=app.plugins.getPlugin('dashell-reader');
     const position=value=>JSON.parse(JSON.stringify({pct:value?.pct,percent:value?.percent,block:value?.block,cfi:value?.cfi}));
     if(!require('util').isDeepStrictEqual(position(progress),position(reader.progress[target]))||reader.progress[target].lastRead<progress.lastRead)throw new Error('Reader progress lost on reload');
     await p.activateView();await p.getActiveDashboardView().then(v=>v.handleArticleClick(p.settings.feeds.find(f=>f.url==='${qaUrl}').items[0]));
@@ -99,7 +99,7 @@ if (stage === "baseline") {
   const original = JSON.parse(fs.readFileSync(baselinePath, "utf8"));
   const baseline = { prefs: original.learning.preferences, ids: original.learning.materials.map(m=>m.id), feeds: original.settings.feeds.map(f=>f.url), layout: original.layout, bookNotePrompted: original.readerSettings.bookNotePrompted, readerLastBook: original.readerLastBook, theme: original.theme };
   result = run(`(async()=>{
-    const baseline=${JSON.stringify(baseline)};const p=app.plugins.getPlugin('dashell-rss'),c=p.dashellLearning,r=app.plugins.getPlugin('qiaomu-reader-english');
+    const baseline=${JSON.stringify(baseline)};const p=app.plugins.getPlugin('dashell-rss'),c=p.dashellLearning,r=app.plugins.getPlugin('dashell-reader');
     for(const leaf of app.workspace.getLeavesOfType('qiaomu-reader-english'))if(leaf.view.file?.path.startsWith('${qaFolder}/'))await leaf.detach();
     await new Promise(resolve=>window.setTimeout(resolve,100));
     const created=c.store.state.materials.filter(m=>!baseline.ids.includes(m.id)&&m.title==='Dashell Reader 联动验证');
@@ -116,7 +116,7 @@ if (stage === "baseline") {
   const original = JSON.parse(fs.readFileSync(baselinePath, "utf8"));
   const expected = { preferences: original.learning.preferences, feeds: original.settings.feeds.map(f => f.url).sort(), theme: original.theme };
   result = run(`(()=>{
-    const expected=${JSON.stringify(expected)},p=app.plugins.getPlugin('dashell-rss'),r=app.plugins.getPlugin('qiaomu-reader-english');
+    const expected=${JSON.stringify(expected)},p=app.plugins.getPlugin('dashell-rss'),r=app.plugins.getPlugin('dashell-reader');
     const same=(a,b)=>require('util').isDeepStrictEqual(JSON.parse(JSON.stringify(a)),JSON.parse(JSON.stringify(b)));
     if(!same(p.dashellLearning.store.state.preferences,expected.preferences))throw new Error('Download preferences not restored');
     if(!same(p.settings.feeds.map(f=>f.url).sort(),expected.feeds))throw new Error('Subscriptions not restored');

@@ -1,7 +1,7 @@
 import { App, TFile } from "obsidian";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DashellLearning } from "../../../src/dashell/controller";
-import { emptyState } from "../../../src/dashell/model";
+import { emptyState, type Material } from "../../../src/dashell/model";
 import type { PluginManifest } from "obsidian";
 import { Store } from "../../../src/dashell/store";
 import type { FeedItem } from "../../../src/types/types";
@@ -9,8 +9,14 @@ import type { FeedItem } from "../../../src/types/types";
 function handoff() {
   const app = App.createMock();
   const reader = { openFile: vi.fn(async (_file: TFile) => ({})) };
+  const player = { openMediaFile: vi.fn(async (_file: TFile) => ({})) };
+  const getPlugin = vi.fn((id: string) => {
+    if (id === "dashell-reader") return reader;
+    if (id === "dashell-player") return player;
+    return null;
+  });
   Object.assign(app, {
-    plugins: { getPlugin: vi.fn(() => reader) },
+    plugins: { getPlugin },
   });
   const controller = new DashellLearning(
     app,
@@ -26,7 +32,23 @@ function handoff() {
     description: "<p>Summary.</p>",
     coverImage: "",
   };
-  return { app, reader, controller, item };
+  return { app, reader, player, getPlugin, controller, item };
+}
+
+function learningMaterial(kind: Material["kind"]): Material {
+  return {
+    id: `handoff-${kind}`,
+    title: "Learning handoff",
+    link: "https://example.com/lesson",
+    kind,
+    content: "",
+    published: "",
+    language: "en",
+    level: "",
+    assets: [],
+    download: "ready",
+    sessions: [],
+  };
 }
 
 describe("Article cards open the learning plugin", () => {
@@ -39,9 +61,19 @@ describe("Article cards open the learning plugin", () => {
     const content = vi.fn(async () => "Replacement content");
     await h.controller.open({ ...h.item, savedFilePath: saved.path }, content);
     expect(h.reader.openFile).toHaveBeenCalledWith(saved);
+    expect(h.getPlugin).toHaveBeenCalledWith("dashell-reader");
     expect(content).not.toHaveBeenCalled();
     expect(h.app.vault.getFiles()).toHaveLength(1);
     expect(await h.app.vault.read(saved)).toBe("Personal annotations");
+    h.controller.dispose();
+  });
+
+  it("routes media materials to Dashell Player's current plugin ID", () => {
+    const h = handoff();
+    expect(
+      h.controller.learning.requirePlugin(learningMaterial("video")),
+    ).toBe(h.player);
+    expect(h.getPlugin).toHaveBeenCalledWith("dashell-player");
     h.controller.dispose();
   });
 
