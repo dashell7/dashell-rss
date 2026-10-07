@@ -23,7 +23,7 @@ export class Learning {
   requirePlugin(item: Material): Partial<Reader> | Partial<Player> {
     const media = item.kind === "audio" || item.kind === "video";
     const registry = (this.app as unknown as Plugins).plugins;
-    const plugin = registry?.getPlugin(media ? "langplayer" : "qiaomu-reader-english") as
+    const plugin = registry?.getPlugin(media ? "dashell-player" : "dashell-reader") as
       (Partial<Reader> & Partial<Player>) | null;
     if (!plugin || (media ? typeof plugin.openMediaFile !== "function" : typeof plugin.openFile !== "function"))
       throw new UserError(media ? "请启用 Dashell Player 后再打开音视频。" : "请启用 Dashell Reader 后再打开文章。");

@@ -1,3 +1,9 @@
+## 2.7.4 - 2026-10-07
+
+### Fixes
+
+- Fixed Dashell RSS failing to open downloaded articles and media in Dashell Reader and Dashell Player after their plugin IDs changed.
+
 ## 2.7.3 - 2026-10-06
 
 ### Features
