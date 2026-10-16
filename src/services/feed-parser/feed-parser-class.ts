@@ -10,7 +10,7 @@ import { MediaService } from "../media-service.js";
 import { MastodonService } from "../mastodon-service.js";
 import { resolveAbsoluteHttpUrl } from "../../utils/url-utils.js";
 import { htmlToReadableText } from "../../utils/html-text.js";
-import { fetchFeedXml } from "./feed-fetch.js";
+import { fetchFeedXml, type FeedValidators } from "./feed-fetch.js";
 import { parseFetchErrorMessage } from "./feed-errors.js";
 import { CustomXMLParser } from "./xml-parser/custom-xml-parser.js";
 import { assertParsedFeedHasEntries } from "./parsed-feed-assert.js";
@@ -18,7 +18,6 @@ import {
   FEED_REQUEST_TIMEOUT_MS,
   FEED_SOFT_TIMEOUT_MS,
 } from "../feed-timeout.js";
-import { globalFetchSemaphore } from "./fetch-semaphore.js";
 import {
   applyFeedRetentionLimits,
   mergeFeedHistoryItems,
@@ -43,6 +42,15 @@ import { optimizeImageUrl } from "../../utils/image-url-utils.js";
 import { extractCoverImage } from "./feed-cover-image.js";
 
 export type { FeedParseOptions } from "./types.js";
+
+function updateFeedValidators(feed: Feed, validators: FeedValidators): void {
+  if (validators.status !== 200 || !validators.responseHeaders) return;
+  const headers = Object.entries(validators.responseHeaders);
+  const header = (name: string) => headers.find(([key]) => key.toLowerCase() === name)?.[1];
+  feed.etag = header("etag");
+  feed.lastModified = header("last-modified");
+}
+
 export class FeedParser {
   private displaySettings: DisplaySettings;
   private mediaSettings: MediaSettings;
@@ -52,6 +60,7 @@ export class FeedParser {
   private getCorsProxyEnabled: () => boolean;
   private getRetentionProtections: () => FeedRetentionProtections;
   private getUseFirstSeenDateFallback: () => boolean;
+  private pendingRefresh = new Map<string, Promise<Feed>>();
 
   constructor(
     displaySettings: DisplaySettings,
@@ -349,6 +358,7 @@ export class FeedParser {
       throw new Error("Feed url is required");
     }
 
+    const validators: FeedValidators = { etag: existingFeed?.etag, lastModified: existingFeed?.lastModified };
     const responseText = await fetchFeedXml(
       url,
       this.getCorsProxyEnabled(),
@@ -356,7 +366,13 @@ export class FeedParser {
       existingFeed?.feedEncoding === "windows-1251"
         ? existingFeed.feedEncoding
         : undefined,
+      validators,
     );
+    if (options?.signal?.aborted) throw new Error("请求已取消。");
+    if (validators.status === 304 && existingFeed) {
+      existingFeed.lastUpdated = Date.now();
+      return existingFeed;
+    }
     const parsed = this.parser.parseString(responseText);
 
     assertParsedFeedHasEntries(parsed, options);
@@ -370,6 +386,7 @@ export class FeedParser {
       items: [],
       lastUpdated: Date.now(),
     };
+    updateFeedValidators(newFeed, validators);
 
     const resolvedSiteUrl = resolveAbsoluteHttpUrl(parsed.link, url);
     if (resolvedSiteUrl) {
@@ -484,7 +501,20 @@ export class FeedParser {
     feed.items = updated.items;
   }
 
-  async refreshFeed(
+  refreshFeed(feed: Feed, options?: { signal?: AbortSignal }): Promise<Feed> {
+    // Callers with their own cancellation scope must not share that scope.
+    if (options?.signal) return this.performRefreshFeed(feed, options);
+    const key = feed.url;
+    const pending = this.pendingRefresh.get(key);
+    if (pending) return pending;
+    const result = this.performRefreshFeed(feed).finally(() => {
+      if (this.pendingRefresh.get(key) === result) this.pendingRefresh.delete(key);
+    });
+    this.pendingRefresh.set(key, result);
+    return result;
+  }
+
+  private async performRefreshFeed(
     feed: Feed,
     options?: { signal?: AbortSignal },
   ): Promise<Feed> {
@@ -547,11 +577,9 @@ export class FeedParser {
 
     const worker = async () => {
       while (queue.length > 0) {
-        await globalFetchSemaphore.acquire();
 
         const feed = queue.shift();
         if (!feed) {
-          globalFetchSemaphore.release();
           continue;
         }
 
@@ -565,9 +593,6 @@ export class FeedParser {
               error,
             );
             updatedFeeds.push(feed);
-          })
-          .finally(() => {
-            globalFetchSemaphore.release();
           });
 
         const softTimeoutPromise = new Promise<void>((resolve) => {

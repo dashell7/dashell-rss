@@ -689,6 +689,7 @@ export class RssDashboardView extends ItemView {
   onOpen(): Promise<void> {
     this.listenForHotkeysInHostDocument();
     this.articleRenderer = new ArticleRenderer({
+      onImages: container => this.plugin.prepareArticleImages(container),
       onLearningPreview: (container, item) => this.plugin.mountLearningPreview(container, item),
       app: this.app,
       component: this,
@@ -3944,6 +3945,10 @@ export class RssDashboardView extends ItemView {
       openSettings: () => { void this.plugin.openSettingsToTab("Display", "Reader"); },
       savePreferences: () => this.plugin.saveSettings(),
     });
+  }
+
+  public refreshReadingWorkbenchOnly(): void {
+    this.readingWorkbench?.refresh();
   }
 
   private renderInlineArticle(container: HTMLElement): void {

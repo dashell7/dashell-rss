@@ -1,6 +1,6 @@
 {
   "name": "dashell-rss",
-  "version": "2.7.4",
+  "version": "2.7.3",
   "description": "RSS dashboard for saving articles to Dashell Reader and previewing media",
   "main": "main.js",
   "type": "commonjs",

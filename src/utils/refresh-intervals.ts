@@ -96,7 +96,7 @@ export function getNextGlobalRefreshDueAt(
 export function getNextRefreshDueAt(
   feed: Pick<
     Feed,
-    "scanInterval" | "excludeFromRefresh" | "lastRefreshAttemptCompletedAt"
+    "scanInterval" | "excludeFromRefresh" | "lastRefreshAttemptCompletedAt" | "refreshRetryAt"
   >,
   globalIntervalMinutes: number,
 ): number | null {
@@ -113,7 +113,7 @@ export function getNextRefreshDueAt(
     return 0;
   }
 
-  return completedAt + intervalMinutes * MINUTE_MS;
+  return Math.max(completedAt + intervalMinutes * MINUTE_MS, feed.refreshRetryAt ?? 0);
 }
 
 /** Returns eligible feeds that are due at the supplied timestamp. */

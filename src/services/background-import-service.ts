@@ -16,7 +16,6 @@ import {
   FEED_SOFT_TIMEOUT_MS,
   MAX_CONCURRENT_FETCHES,
 } from "./feed-timeout";
-import { globalFetchSemaphore } from "./feed-parser/fetch-semaphore";
 import { setCssProps } from "../utils/platform-utils";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -520,19 +519,16 @@ export class BackgroundImportService {
     backgroundPromises: Promise<void>[] = [],
   ): Promise<void> {
     while (true) {
-      await globalFetchSemaphore.acquire();
 
       if (
         this.backgroundImportSignal?.aborted ||
         this.isGlobalOperationCancelled?.()
       ) {
-        globalFetchSemaphore.release();
         return;
       }
 
       const feedMetadata = this.backgroundImportQueue.shift();
       if (!feedMetadata) {
-        globalFetchSemaphore.release();
         return;
       }
       this.backgroundImportQueuedUrls.delete(feedMetadata.url);
@@ -542,9 +538,7 @@ export class BackgroundImportService {
         saveEvery,
         renderEvery,
         shouldRenderDuringImport,
-      ).finally(() => {
-        globalFetchSemaphore.release();
-      });
+      );
 
       const softTimeout = this.waitForSoftTimeout(
         this.backgroundImportSignal ?? undefined,

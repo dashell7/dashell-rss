@@ -33,6 +33,8 @@ function feedIdOfStateKey(key: string): string {
 function applyPersistedState(item: FeedItem, state: ArticleUserState): void {
   item.read = state.read ?? false;
   item.starred = state.starred ?? false;
+  item.readLaterAt = state.readLaterAt;
+  item.lastOpenedAt = state.lastOpenedAt;
   item.tags = state.tags ? cloneJson(state.tags) : [];
   item.saved = state.saved ?? false;
   if (state.savedFilePath) item.savedFilePath = state.savedFilePath;
@@ -142,6 +144,8 @@ export class UserStateStore {
           item.saved = false;
           delete item.savedFilePath;
           delete item.playbackProgress;
+          delete item.readLaterAt;
+          delete item.lastOpenedAt;
         }
         this.syncedUserStateKeys.add(userStateKey(feedId, item.guid));
       }
@@ -396,7 +400,7 @@ export class UserStateStore {
     }
 
     const hasSignal = Boolean(
-      item.read || item.starred || (item.tags && item.tags.length > 0) || item.saved || item.playbackProgress,
+      item.read || item.starred || (item.tags && item.tags.length > 0) || item.saved || item.playbackProgress || item.readLaterAt || item.lastOpenedAt,
     );
     if (!hasSignal && !baseline) {
       return;
@@ -406,6 +410,8 @@ export class UserStateStore {
       read: Boolean(item.read),
       starred: Boolean(item.starred),
       saved: Boolean(item.saved),
+      readLaterAt: item.readLaterAt,
+      lastOpenedAt: item.lastOpenedAt,
     };
     if (item.tags && item.tags.length > 0) state.tags = cloneJson(item.tags);
     if (item.savedFilePath) state.savedFilePath = item.savedFilePath;

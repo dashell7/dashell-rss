@@ -83,7 +83,10 @@ describe("ArticleRenderer restricted-content handling", () => {
       item.link,
       undefined,
     );
-    expect(item.restrictedReason).toBe(RESTRICTED_ARTICLE_REASON);
+    await vi.waitFor(() => {
+      expect(item.restrictedReason).toBe(RESTRICTED_ARTICLE_REASON);
+      expect(container.querySelector(".rss-reader-paywall-banner")).not.toBeNull();
+    });
 
     const banner = container.querySelector(".rss-reader-paywall-banner");
     const content = container.querySelector(".rss-reader-article-content");

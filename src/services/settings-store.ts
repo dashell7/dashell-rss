@@ -17,6 +17,7 @@ import type {
   PersistSettingsOptions,
 } from "./feed-storage-repository";
 import type { FeedRefreshScheduler } from "./feed-refresh-scheduler";
+import { SettingsSaveQueue } from "./settings-save-queue";
 import {
   ensureMetadataFolderExists,
   getMetadataPath,
@@ -93,6 +94,12 @@ export class SettingsStore {
   private settingsLoadGeneration = 0;
   private vaultMetadataReloadTimer: number | null = null;
   private suppressWatcherUntil = 0;
+  private saveQueue = new SettingsSaveQueue<RssDashboardSettings>(
+    (settings, options) => this.persistSettings(settings, options),
+    // Freeze feed membership at enqueue. Article objects remain owned by the live
+    // feed so v2's lazy persisted-state adoption still updates the visible item.
+    settings => ({ ...settings, feeds: settings.feeds.map(feed => ({ ...feed, items: [...feed.items] })) }),
+  );
 
   constructor(
     private readonly app: App,
@@ -370,14 +377,15 @@ export class SettingsStore {
   private async savePluginData(data: unknown): Promise<void> {
     if (!this.settingsLoadFailed) await this.options.saveData(data);
   }
-  getMetadataSaveCallback(): (data: unknown) => Promise<void> {
+  getMetadataSaveCallback(target?: RssDashboardSettings): (data: unknown) => Promise<void> {
     return async (data: unknown): Promise<void> => {
+      const settings = target ?? this.settings;
       if (this.settingsLoadFailed) return;
       const settingsData = data as RssDashboardSettings;
-      const metadataPath = getMetadataPath(this.settings);
+      const metadataPath = getMetadataPath(settings);
       if (metadataPath) {
         try {
-          await ensureMetadataFolderExists(this.app, this.settings);
+          await ensureMetadataFolderExists(this.app, settings);
           const dataFilePath = `${metadataPath}/data.json`;
           const jsonContent = JSON.stringify(settingsData, null, 2);
           await this.writeWithWatcherSuppressed(
@@ -391,10 +399,10 @@ export class SettingsStore {
           // find the vault data.json on restart. Does NOT write full
           // settings to .obsidian, preventing the stale-read bug on mobile.
           await this.savePluginData({
-            metadataStorageMode: this.settings.metadataStorageMode,
-            metadataStorageFolder: this.settings.metadataStorageFolder,
+            metadataStorageMode: settings.metadataStorageMode,
+            metadataStorageFolder: settings.metadataStorageFolder,
             metadataStorageSchemaVersion:
-              this.settings.metadataStorageSchemaVersion,
+              settings.metadataStorageSchemaVersion,
           });
         } catch (error) {
           storageError("Failed to save metadata to vault location", error);
@@ -409,6 +417,11 @@ export class SettingsStore {
 
   async saveSettings(options: PersistSettingsOptions = {}): Promise<void> {
     if (this.settingsLoadFailed) return;
+    this.feedStorageRepository.ensureFeedIds(this.settings);
+    return this.saveQueue.save(this.settings, options);
+  }
+
+  private async persistSettings(settings: RssDashboardSettings, options: PersistSettingsOptions): Promise<void> {
     storageLog("saveSettings invoked", {
       mode: this.settings.storageMode,
       folder: this.settings.storageFolder,
@@ -418,8 +431,8 @@ export class SettingsStore {
 
     try {
       const result = await this.feedStorageRepository.persistSettings(
-        this.settings,
-        this.getMetadataSaveCallback(),
+        settings,
+        this.getMetadataSaveCallback(settings),
         options,
       );
       storageLog("saveSettings completed", result);

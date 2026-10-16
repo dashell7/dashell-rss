@@ -121,6 +121,8 @@ function createFeedShard(feed: Feed, stripState = false): FeedItemsShard {
         delete item.saved;
         delete item.savedFilePath;
         delete item.playbackProgress;
+        delete item.readLaterAt;
+        delete item.lastOpenedAt;
       }
       return item;
     }),

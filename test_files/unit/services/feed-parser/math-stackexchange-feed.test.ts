@@ -24,6 +24,8 @@ describe("Math StackExchange Atom feed", () => {
 
     expect(parsed.items).toHaveLength(1);
     expect(parsed.items[0].description).toBe(expected);
-    expect(parsed.items[0].content).toBe(expected);
+    // HTML content preserves the paragraph newline for Reader export; the
+    // compact description still normalizes whitespace for list previews.
+    expect(parsed.items[0].content).toBe(expected.replace("</p> <p>", "</p>\n<p>"));
   });
 });

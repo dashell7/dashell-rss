@@ -1,13 +1,16 @@
-import { requestUrl, setIcon } from "obsidian";
+import { setIcon } from "obsidian";
+import { readRequest } from "./read-request";
 import type { RequestUrlParam } from "obsidian";
 
 export interface RobustFetchResult {
   text: string;
   status: number;
+  headers?: Record<string, string>;
 }
 
 export type RobustFetchOptions = Partial<RequestUrlParam> & {
   encodingOverride?: string;
+  priority?: 0 | 1 | 2;
 };
 
 export function sleep(ms: number): Promise<void> {
@@ -157,17 +160,20 @@ export async function robustFetchDetailed(
   url: string,
   options: RobustFetchOptions = {},
 ): Promise<RobustFetchResult> {
-  const { encodingOverride, ...requestOptions } = options;
+  const { encodingOverride, priority = 2, ...requestOptions } = options;
   // On desktop, Obsidian's requestUrl forwards `headers` (including a custom
   // User-Agent) unmodified: the renderer sends them over IPC to the main
   // process, which applies each one via Electron's net.request().setHeader().
   // Verified by decompiling obsidian.asar (see GH issue #257) — a request
   // that still gets blocked by a remote server isn't losing its headers here.
-  const response = await requestUrl({
+  const response = await readRequest({
     ...requestOptions,
     url,
     method: requestOptions.method || "GET",
-  });
+  }, { priority });
+  if (requestOptions.throw !== false && response.status >= 400) {
+    throw new Error(`请求失败（${response.status}）。`);
+  }
 
   const status = response.status ?? 0;
 
@@ -175,7 +181,7 @@ export async function robustFetchDetailed(
     !response.arrayBuffer ||
     (response.arrayBuffer.byteLength === 0 && response.text)
   ) {
-    return { text: response.text || "", status };
+    return { text: response.text || "", status, headers: response.headers };
   }
 
   const contentTypeEntry = Object.entries(response.headers).find(
@@ -194,13 +200,13 @@ export async function robustFetchDetailed(
 
   try {
     const decoder = new TextDecoder(charset);
-    return { text: decoder.decode(response.arrayBuffer), status };
+    return { text: decoder.decode(response.arrayBuffer), status, headers: response.headers };
   } catch (e) {
     void e;
     // [RSS Dashboard] Failed to decode with charset ${charset}, falling back to utf-8
     // Fallback to utf-8 if specified charset fails
     const decoder = new TextDecoder("utf-8");
-    return { text: decoder.decode(response.arrayBuffer), status };
+    return { text: decoder.decode(response.arrayBuffer), status, headers: response.headers };
   }
 }
 

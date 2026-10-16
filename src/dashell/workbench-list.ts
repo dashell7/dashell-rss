@@ -45,7 +45,7 @@ export function renderEntry(
   item: FeedItem,
   selected: boolean,
   open: () => void,
-): void {
+): HTMLButtonElement {
   const button = parent.createEl("button", {
     cls: "rss-workbench-entry",
     attr: { type: "button", "aria-pressed": String(selected) },
@@ -91,6 +91,7 @@ export function renderEntry(
     );
   }
   button.addEventListener("click", open);
+  return button;
 }
 
 export function bindListResize(options: {

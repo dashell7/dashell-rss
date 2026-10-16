@@ -14,6 +14,8 @@ export interface FeedItem {
   guid: string;
   read?: boolean;
   starred?: boolean;
+  readLaterAt?: number;
+  lastOpenedAt?: number;
   tags?: Tag[];
   feedTitle: string;
   feedUrl: string;
@@ -144,6 +146,11 @@ export interface Feed {
    * Cleared (set to undefined) on the next successful fetch.
    */
   lastFetchError?: string;
+  /** Conditional GET validators apply only to the canonical feed URL. */
+  etag?: string;
+  lastModified?: string;
+  refreshFailureCount?: number;
+  refreshRetryAt?: number;
   /**
    * True while a background import placeholder is waiting for its first
    * fetch. Persisted so an import interrupted by an unload resumes on the
@@ -450,6 +457,8 @@ export type FeedStorageMode =
 export interface ArticleUserState {
   read?: boolean;
   starred?: boolean;
+  readLaterAt?: number;
+  lastOpenedAt?: number;
   tags?: Tag[];
   saved?: boolean;
   savedFilePath?: string;

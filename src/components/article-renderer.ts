@@ -25,12 +25,14 @@ import {
 } from "../utils/image-url-utils";
 import { PodcastPlayer } from "../views/podcast-player";
 import { VideoPlayer } from "../views/video-player";
+import { bilibiliEmbedUrl } from "../utils/video-embed";
 
 const VIDEO_ARTICLE_BANNER =
   "This item appears to be a video. Open the source page to watch.";
 const VIDEO_ARTICLE_LINK_TEXT = "Open video at source";
 
 export interface ArticleRendererOptions {
+  onImages?: (container: HTMLElement) => () => void;
   onLearningPreview?: (container: HTMLElement, item: FeedItem) => () => void;
   app: App;
   component: Component;
@@ -51,6 +53,8 @@ export interface ArticleRendererOptions {
 }
 
 export class ArticleRenderer {
+  private imageCleanup?: () => void;
+  private onImages?: ArticleRendererOptions['onImages'];
   private renderGeneration = 0;
   private onLearningPreview?: ArticleRendererOptions['onLearningPreview'];
   private learningCleanup?: () => void;
@@ -83,6 +87,8 @@ export class ArticleRenderer {
   private lastRestrictedNoticeGuid: string | null = null;
 
   constructor(options: ArticleRendererOptions) {
+    this.onImages = options.onImages;
+    options.component.register(() => this.imageCleanup?.());
     this.onLearningPreview = options.onLearningPreview;
     options.component.register(() => this.learningCleanup?.());
     this.app = options.app;
@@ -100,6 +106,7 @@ export class ArticleRenderer {
     relatedItems: FeedItem[] = [],
   ): Promise<void> {
     const generation = ++this.renderGeneration;
+    this.imageCleanup?.();
     this.learningCleanup?.();
     container.addClass('rss-dashell-reader-content');
     if (this.currentItem?.guid !== item.guid) {
@@ -119,7 +126,17 @@ export class ArticleRenderer {
       if (vid) item.videoId = vid;
     }
 
-    if (item.mediaType === "video" && item.videoId) {
+    const bilibili = bilibiliEmbedUrl(item.link);
+    if (bilibili) {
+      this.cleanupPlayers();
+      const player = container.createDiv({ cls: "rss-video-container" });
+      player.createEl("iframe", { attr: {
+        src: bilibili, "aria-label": item.title, allowfullscreen: "true",
+        sandbox: "allow-scripts allow-same-origin allow-presentation allow-popups",
+        referrerpolicy: "no-referrer", allow: "fullscreen; picture-in-picture",
+      } });
+      await this.displayArticle(container, item);
+    } else if (item.mediaType === "video" && item.videoId) {
       await this.displayVideo(container, item);
     } else if (item.mediaType === "video" && item.videoUrl) {
       await this.displayVideoPodcast(container, item);
@@ -133,10 +150,21 @@ export class ArticleRenderer {
       }
       await this.displayPodcast(container, item);
     } else {
-      const fetchedContent = this.shouldSkipFullArticleFetch(item)
-        ? ""
-        : await this.fetchFullArticleContent(item.link, generation);
-      if (generation !== this.renderGeneration) return;
+      this.currentFullContent = item.content || item.description || "";
+      await this.displayArticle(container, item, this.currentFullContent);
+      if (!this.shouldSkipFullArticleFetch(item)) {
+        void this.upgradeArticle(container, item, generation).catch(error => console.warn('[Dashell RSS] Article upgrade failed', error));
+      }
+    }
+    if (generation === this.renderGeneration && this.currentItem === item) {
+      this.imageCleanup = this.onImages?.(container);
+      this.learningCleanup = this.onLearningPreview?.(container, { ...item, content: this.currentFullContent || item.content });
+    }
+  }
+
+  private async upgradeArticle(container: HTMLElement, item: FeedItem, generation: number): Promise<void> {
+      const fetchedContent = await this.fetchFullArticleContent(item.link, generation);
+      if (generation !== this.renderGeneration || this.currentItem !== item) return;
       const hasFullArticleContent =
         this.hasMeaningfulArticleContent(fetchedContent);
 
@@ -156,15 +184,24 @@ export class ArticleRenderer {
       this.currentFullContent = fullContent;
       this.currentDisplayTitle = displayTitle || undefined;
       this.currentContentIsFullArticle = hasFullArticleContent;
+      if (!hasFullArticleContent && !item.restrictedReason) return;
+      const top = container.scrollTop;
+      this.learningCleanup?.();
+      this.imageCleanup?.();
+      container.empty();
       await this.displayArticle(container, item, fullContent);
-    }
-    if (generation === this.renderGeneration && this.currentItem === item) this.learningCleanup = this.onLearningPreview?.(container, { ...item, content: this.currentFullContent || item.content });
+      if (generation !== this.renderGeneration) return;
+      this.imageCleanup = this.onImages?.(container);
+      this.learningCleanup = this.onLearningPreview?.(container, { ...item, content: fullContent });
+      container.scrollTop = top;
   }
 
   public disposePreview(): void {
     this.renderGeneration++;
     this.learningCleanup?.();
     this.learningCleanup = undefined;
+    this.imageCleanup?.();
+    this.imageCleanup = undefined;
     this.cleanupPlayers();
   }
 

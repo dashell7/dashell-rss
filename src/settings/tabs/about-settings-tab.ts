@@ -7,6 +7,8 @@
  */
 import { Notice, setIcon, setTooltip } from "obsidian";
 import RssDashboardPlugin from "../../../main";
+import supportQrImage from "../../assets/about/dashell-support-qr.jpg";
+import wechatQrImage from "../../assets/about/dashell-wechat-qr.jpg";
 import { formatBuildLabel, getBuildInfo } from "../../utils/build-info";
 import { WhatsNewModal } from "../../modals/whats-new-modal";
 import { getReleaseNoteForVersion } from "../../release-notes";
@@ -20,6 +22,83 @@ function renderMaintainer(containerEl: HTMLElement, plugin: RssDashboardPlugin):
   });
   link.target = "_blank";
   link.rel = "noopener noreferrer";
+}
+
+function renderDashellContacts(containerEl: HTMLElement): void {
+  const contactList = containerEl.createDiv({
+    cls: "rss-dashboard-about-contact-list",
+  });
+  const addContact = (label: string, value: string, href?: string): void => {
+    const row = contactList.createDiv({ cls: "rss-dashboard-about-contact" });
+    row.createSpan({ text: label });
+    const valueEl = href
+      ? row.createEl("a", { text: value, href, cls: "rss-dashboard-about-contact-value" })
+      : row.createSpan({ text: value, cls: "rss-dashboard-about-contact-value" });
+    if (valueEl.instanceOf(HTMLAnchorElement)) {
+      valueEl.target = "_blank";
+      valueEl.rel = "noopener noreferrer";
+    }
+  };
+
+  addContact("邮箱", "dashell7@gmail.com", "mailto:dashell7@gmail.com");
+  addContact("X", "@dashell77", "https://x.com/dashell77");
+  addContact("GitHub", "@dashell7", "https://github.com/dashell7");
+  addContact("微信", "Adashell");
+}
+
+function renderAboutQrSection(
+  containerEl: HTMLElement,
+  title: string,
+  description: string,
+  src: string,
+  alt: string,
+): void {
+  const row = containerEl.createDiv({ cls: "rss-dashboard-about-qr" });
+  const copy = row.createDiv({ cls: "rss-dashboard-about-qr-copy" });
+  copy.createDiv({ text: title, cls: "rss-dashboard-about-qr-title" });
+  copy.createDiv({ text: description, cls: "rss-dashboard-about-qr-description" });
+  row.createEl("img", {
+    cls: "rss-dashboard-about-qr-image",
+    attr: { src, alt, width: "160", height: "160", loading: "lazy" },
+  });
+}
+
+function renderProjectDescription(
+  containerEl: HTMLElement,
+  plugin: RssDashboardPlugin,
+): void {
+  containerEl.createEl("p", {
+    text: "Dashell RSS 由 dashell 维护，保留 RSS dashboard 的订阅与媒体预览体验，并与 Dashell Reader、Dashell Player 协同工作。",
+  });
+
+  const featuresList = containerEl.createEl("ul", {
+    cls: "rss-dashboard-about-features-list",
+  });
+  featuresList.createEl("li", { text: "订阅、阅读状态和学习资料保存在本地库中。" });
+  featuresList.createEl("li", {
+    text: "文章可保存到库中并交由 Dashell Reader 阅读；播客和视频继续使用 RSS 预览。",
+  });
+  featuresList.createEl("li", { text: "开源项目，不含广告或付费墙。" });
+
+  renderMaintainer(containerEl, plugin);
+  const attributionParagraph = containerEl.createEl("p");
+  attributionParagraph.createSpan({ text: "本插件基于 RSS Dashboard。上游项目由 " });
+  const originalCreatorLink = attributionParagraph.createEl("a", {
+    text: "Amatya-aditya",
+    href: "https://github.com/amatya-aditya/",
+    cls: "rss-dashboard-about-link",
+  });
+  originalCreatorLink.target = "_blank";
+  originalCreatorLink.rel = "noopener noreferrer";
+  attributionParagraph.createSpan({ text: " 创建，后由 " });
+  const maintainerLink = attributionParagraph.createEl("a", {
+    text: "Marcd35",
+    href: "https://github.com/marcd35",
+    cls: "rss-dashboard-about-link",
+  });
+  maintainerLink.target = "_blank";
+  maintainerLink.rel = "noopener noreferrer";
+  attributionParagraph.createSpan({ text: " 自 2.2.0 版起持续维护，并感谢社区贡献者。" });
 }
 
 export function renderAboutTab(
@@ -76,45 +155,7 @@ export function renderAboutTab(
   const descriptionContainer = aboutContainer.createDiv({
     cls: "rss-dashboard-about-description",
   });
-
-  descriptionContainer.createEl("p", {
-    text: "RSS dashboard is a free, open-source community plugin for Obsidian that makes it easy to manage your RSS feeds, YouTube subscriptions, and podcasts in one place.",
-  });
-
-  const featuresList = descriptionContainer.createEl("ul", {
-    cls: "rss-dashboard-about-features-list",
-  });
-  featuresList.createEl("li", { text: "Data is stored locally." });
-  featuresList.createEl("li", {
-    text: "Content can be saved directly to your vault.",
-  });
-  featuresList.createEl("li", { text: "No ads, no tracking, no paywalls." });
-
-  renderMaintainer(descriptionContainer, plugin);
-  const attributionParagraph = descriptionContainer.createEl("p");
-  attributionParagraph.createSpan({
-    text: "RSS Dashboard was originally created by ",
-  });
-  const originalCreatorLink = attributionParagraph.createEl("a", {
-    text: "Amatya-aditya",
-    href: "https://github.com/amatya-aditya/",
-    cls: "rss-dashboard-about-link",
-  });
-  originalCreatorLink.target = "_blank";
-  originalCreatorLink.rel = "noopener noreferrer";
-  attributionParagraph.createSpan({
-    text: ", with active development and support offered by ",
-  });
-  const maintainerLink = attributionParagraph.createEl("a", {
-    text: "Marcd35",
-    href: "https://github.com/marcd35",
-    cls: "rss-dashboard-about-link",
-  });
-  maintainerLink.target = "_blank";
-  maintainerLink.rel = "noopener noreferrer";
-  attributionParagraph.createSpan({
-    text: " since version 2.2.0, alongside many contributions from the community.",
-  });
+  renderProjectDescription(descriptionContainer, plugin);
 
   const createLinkButton = (
     parent: HTMLElement,
@@ -133,21 +174,35 @@ export function renderAboutTab(
   const actionsRow = aboutContainer.createDiv({
     cls: "rss-dashboard-about-btn-row",
   });
-  createLinkButton(
-    actionsRow,
-    "GitHub",
-    "https://github.com/dashell7",
-  );
-  createLinkButton(
-    actionsRow,
-    "联系作者",
-    "https://github.com/dashell7",
-  );
-  createLinkButton(actionsRow, "RSS Dashboard 上游", "https://github.com/amatya-aditya/obsidian-rss-dashboard");
+  createLinkButton(actionsRow, "项目仓库", "https://github.com/dashell7/dashell-rss");
+  createLinkButton(actionsRow, "更新记录", "https://github.com/dashell7/dashell-rss/releases");
+  createLinkButton(actionsRow, "使用说明", "https://github.com/dashell7/dashell-rss#readme");
+  createLinkButton(actionsRow, "许可证", "https://github.com/dashell7/dashell-rss/blob/codex/dashell-rss-upstream-sync/LICENSE");
 
   aboutContainer.createDiv({
     cls: "rss-dashboard-about-section-title",
-    text: "支持上游开发",
+    text: "问题反馈",
+  });
+  const feedbackRow = aboutContainer.createDiv({
+    cls: "rss-dashboard-about-btn-row",
+  });
+  createLinkButton(feedbackRow, "报告问题或提出建议", "https://github.com/dashell7/dashell-rss/issues");
+
+  renderDashellContacts(aboutContainer);
+  aboutContainer.createDiv({
+    cls: "rss-dashboard-about-section-title",
+    text: "打赏支持",
+  });
+  renderAboutQrSection(aboutContainer, "支持 dashell7", "感谢支持 Dashell 插件持续维护。", supportQrImage, "dashell7 赞赏码");
+  aboutContainer.createDiv({
+    cls: "rss-dashboard-about-section-title",
+    text: "关注公众号",
+  });
+  renderAboutQrSection(aboutContainer, "Dashell 公众号", "扫码关注公众号。", wechatQrImage, "Dashell 微信公众号二维码");
+
+  aboutContainer.createDiv({
+    cls: "rss-dashboard-about-section-title",
+    text: "支持 RSS Dashboard 上游",
   });
   const supportRow = aboutContainer.createDiv({
     cls: "rss-dashboard-about-btn-row",
@@ -161,7 +216,7 @@ export function renderAboutTab(
 
   aboutContainer.createDiv({
     cls: "rss-dashboard-about-section-title",
-    text: "Other plugins by the author",
+    text: "Dashell 的其他插件",
   });
   const otherPluginsRow = aboutContainer.createDiv({
     cls: "rss-dashboard-about-btn-row",
@@ -169,16 +224,11 @@ export function renderAboutTab(
   createLinkButton(
     otherPluginsRow,
     "Dashell Reader",
-    "https://github.com/dashell7/qiaomu-reader-english",
+    "https://github.com/dashell7/dashell-reader",
   );
   createLinkButton(
     otherPluginsRow,
     "Dashell Player",
-    "https://github.com/dashell7/obsidian-langplayer",
-  );
-  createLinkButton(
-    otherPluginsRow,
-    "GitHub @dashell7",
-    "https://github.com/dashell7",
+    "https://github.com/dashell7/dashell-player",
   );
 }

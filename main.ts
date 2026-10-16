@@ -1,3 +1,4 @@
+import { disposeReadRequests } from "./src/utils/read-request";
 import {
   App,
   Plugin,
@@ -415,6 +416,10 @@ export default class RssDashboardPlugin extends Plugin {
     return this.previewImageCache.resolveCachedUrl(remoteUrl);
   }
 
+  public prepareArticleImages(root: HTMLElement): () => void {
+    return this.previewImageCache.prepareArticleImages(root);
+  }
+
   public getImageCacheSizeBytes(): number {
     return this.previewImageCache.getSizeBytes();
   }
@@ -521,8 +526,14 @@ export default class RssDashboardPlugin extends Plugin {
         getLastGlobalRefreshCompletedAt: () =>
           this.settings.lastGlobalRefreshCompletedAt,
         isBatchRunning: () => this.feedOperationTracker.isRunning,
-        requestGlobalRefresh: async () =>
-          await this.refreshFeeds(undefined, "global"),
+        requestGlobalRefresh: async () => {
+          const eligible = this.settings.feeds.filter(feed => (feed.refreshRetryAt ?? 0) <= Date.now());
+          if (eligible.length) await this.refreshFeeds(eligible, "global");
+          else {
+            this.settings.lastGlobalRefreshCompletedAt = Date.now();
+            await this.saveSettings();
+          }
+        },
         requestDueFeeds: async (feeds) => await this.refreshFeeds(feeds, "due"),
       });
     }
@@ -848,6 +859,7 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   async onload() {
+    this.register(disposeReadRequests);
     const adapter = this.app.vault.adapter as unknown as VaultAdapterPathAccess;
     if (typeof adapter.getBasePath === "function") {
       this.vaultAbsolutePath = adapter.getBasePath();

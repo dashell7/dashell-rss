@@ -40,6 +40,33 @@ describe("renderAboutTab()", () => {
       expect(link.getAttribute("href")).toMatch(/^https?:\/\//);
       expect(link.textContent?.length).toBeGreaterThan(0);
     }
+
+    const destinations = links.map((link) => link.getAttribute("href"));
+    expect(destinations).toContain("https://github.com/dashell7/dashell-rss");
+    expect(destinations).toContain("https://github.com/dashell7/dashell-rss/issues");
+    expect(destinations).toContain("https://github.com/dashell7/dashell-reader");
+    expect(destinations).toContain("https://github.com/dashell7/dashell-player");
+    expect(destinations).not.toContain("https://github.com/dashell7/qiaomu-reader-english");
+    expect(destinations).not.toContain("https://github.com/dashell7/obsidian-langplayer");
+
+    const contacts = Array.from(
+      containerEl.querySelectorAll(".rss-dashboard-about-contact"),
+    );
+    expect(contacts.map((row) => row.textContent)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("dashell7@gmail.com"),
+        expect.stringContaining("@dashell77"),
+        expect.stringContaining("@dashell7"),
+        expect.stringContaining("Adashell"),
+      ]),
+    );
+    const qrImages = Array.from(
+      containerEl.querySelectorAll<HTMLImageElement>(".rss-dashboard-about-qr-image"),
+    );
+    expect(qrImages.map((image) => image.alt)).toEqual([
+      "dashell7 赞赏码",
+      "Dashell 微信公众号二维码",
+    ]);
   });
 });
 

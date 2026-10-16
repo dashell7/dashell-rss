@@ -1,4 +1,5 @@
 import { normalizePath } from "obsidian";
+import { svgPng } from "../utils/svg-image";
 
 export const MAX_CACHED_IMAGE_BYTES = 1_048_576;
 export const MAX_IMAGE_CACHE_BYTES = 100 * 1_024 * 1_024;
@@ -63,6 +64,10 @@ export class ImageCacheService {
   private readonly entries = new Map<string, ImageCacheEntry>();
   private initialized = false;
   private writeGeneration = 0;
+  private pending = new Map<string, Promise<boolean>>();
+  private ready = new Map<string, ImageCacheFetchResponse>();
+  private listeners = new Map<string, Array<(response: ImageCacheFetchResponse) => void>>();
+  private writeTail = Promise.resolve();
 
   constructor(options: ImageCacheServiceOptions) {
     this.adapter = options.adapter;
@@ -125,8 +130,10 @@ export class ImageCacheService {
   async setMaxCacheBytes(maxCacheBytes: number | null): Promise<void> {
     this.maxCacheBytes = maxCacheBytes;
     if (this.initialized && maxCacheBytes !== null) {
-      await this.evictUntilFits(0, 0);
-      await this.persistIndex();
+      await this.serializeWrite(async () => {
+        await this.evictUntilFits(0, 0);
+        await this.persistIndex();
+      });
     }
     this.onChange?.();
   }
@@ -137,22 +144,62 @@ export class ImageCacheService {
     return !!entry && this.now() - entry.cachedAt >= IMAGE_CACHE_STALE_AFTER_MS;
   }
 
-  async cacheUrl(rawUrl: string, refreshStale = false): Promise<boolean> {
+  async cacheUrl(rawUrl: string, refreshStale = false, onReady?: (response: ImageCacheFetchResponse) => void): Promise<boolean> {
+    const key = this.normalizeUrl(rawUrl);
+    if (!key) return false;
+    if (onReady) {
+      const ready = this.ready.get(key);
+      if (ready) onReady(ready);
+      else this.listeners.set(key, [...this.listeners.get(key) ?? [], onReady]);
+    }
+    const shared = this.pending.get(key);
+    if (shared) return shared;
+    if (this.pending.size >= 64) {
+      this.listeners.delete(key);
+      return false;
+    }
+    const promise = this.fetchAndCache(key, refreshStale).finally(() => {
+      if (this.pending.get(key) === promise) this.pending.delete(key);
+      this.ready.delete(key);
+      this.listeners.delete(key);
+    });
+    this.pending.set(key, promise);
+    return promise;
+  }
+  private async prepareResponse(response: ImageCacheFetchResponse): Promise<ImageCacheFetchResponse | null> {
+    const declaredLength = this.getDeclaredLength(response.headers);
+    if (response.status < 200 || response.status >= 300 || response.arrayBuffer.byteLength > MAX_CACHED_IMAGE_BYTES || declaredLength !== null && declaredLength > MAX_CACHED_IMAGE_BYTES) return null;
+    const mediaType = Object.entries(response.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1]?.split(";", 1)[0]?.trim().toLowerCase();
+    if (mediaType !== "image/svg+xml") return response;
+    try {
+      const png = await svgPng(response.arrayBuffer);
+      return png ? { ...response, headers: { "content-type": "image/png" }, arrayBuffer: png } : null;
+    } catch { return null; }
+  }
+  private notifyReady(url: string, response: ImageCacheFetchResponse): void {
+    this.ready.set(url, response);
+    for (const listener of this.listeners.get(url) ?? []) {
+      try { listener(response); } catch (error) { console.warn("[RSS dashboard] Image display failed", error); }
+    }
+    this.listeners.delete(url);
+  }
+  private async fetchAndCache(rawUrl: string, refreshStale: boolean): Promise<boolean> {
     if (!this.initialized) return false;
     const url = this.normalizeUrl(rawUrl);
     if (!url) return false;
     const existingEntry = this.entries.get(url);
     if (existingEntry && (!refreshStale || !this.isStale(url))) return true;
 
-    let response: ImageCacheFetchResponse;
+    let response: ImageCacheFetchResponse | null;
     const writeGeneration = this.writeGeneration;
     try {
-      response = await this.fetchImage(url);
+      response = await this.prepareResponse(await this.fetchImage(url));
     } catch (error) {
       console.warn("[RSS dashboard] Unable to cache preview image", error);
       return false;
     }
 
+    if (!response || writeGeneration !== this.writeGeneration) return false;
     const extension = this.getImageExtension(response);
     if (
       response.status < 200 ||
@@ -164,10 +211,8 @@ export class ImageCacheService {
       return false;
     }
 
-    const declaredLength = this.getDeclaredLength(response.headers);
-    if (declaredLength !== null && declaredLength > MAX_CACHED_IMAGE_BYTES) {
-      return false;
-    }
+    this.notifyReady(url, response);
+    const imageData = response.arrayBuffer;
 
     const fileName = `${await this.hashUrl(url)}.${extension}`;
     const entry: ImageCacheEntry = {
@@ -177,11 +222,12 @@ export class ImageCacheService {
       lastAccessedAt: this.now(),
     };
 
-    if (writeGeneration !== this.writeGeneration) return false;
-    await this.evictUntilFits(entry.byteLength, existingEntry?.byteLength ?? 0);
-    if (writeGeneration !== this.writeGeneration) return false;
-    try {
-      await this.adapter.writeBinary(this.getEntryPath(entry), response.arrayBuffer);
+    return this.serializeWrite(async () => {
+      if (writeGeneration !== this.writeGeneration) return false;
+      await this.evictUntilFits(entry.byteLength, this.entries.get(url)?.byteLength ?? 0);
+      if (writeGeneration !== this.writeGeneration) return false;
+      try {
+      await this.adapter.writeBinary(this.getEntryPath(entry), imageData);
       if (writeGeneration !== this.writeGeneration) {
         await this.removeCachedFile(entry);
         return false;
@@ -193,14 +239,22 @@ export class ImageCacheService {
       await this.persistIndex();
       this.onChange?.();
       return true;
-    } catch (error) {
+      } catch (error) {
       console.warn("[RSS dashboard] Unable to write cached preview image", error);
       return false;
-    }
+      }
+    });
+  }
+
+  private serializeWrite<T>(work: () => Promise<T>): Promise<T> {
+    const result = this.writeTail.then(work);
+    this.writeTail = result.then(() => undefined, () => undefined);
+    return result;
   }
 
   async clear(): Promise<{ cleared: number; failed: number }> {
     this.cancelPendingWrites();
+    await this.writeTail;
     let cleared = 0;
     let failed = 0;
 
@@ -223,6 +277,7 @@ export class ImageCacheService {
   /** Deletes every cached file, the index, and the cache folder itself. */
   async destroy(): Promise<void> {
     this.cancelPendingWrites();
+    await this.writeTail;
     this.entries.clear();
     this.initialized = false;
 
@@ -245,6 +300,7 @@ export class ImageCacheService {
     if (urls.size === 0) return { cleared: 0, failed: 0 };
 
     this.cancelPendingWrites();
+    await this.writeTail;
     let cleared = 0;
     let failed = 0;
 

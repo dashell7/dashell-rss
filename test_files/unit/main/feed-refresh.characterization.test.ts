@@ -764,7 +764,7 @@ describe("feed refresh: the batch", () => {
     expect(harness.plugin.isMultiFeedRefreshActive).toBe(false);
   });
 
-  it("detaches a feed slower than the soft timeout, keeps its fetch slot, and waits for it before saving", async () => {
+  it("queues the next parser after a soft timeout and waits for detached feeds before saving", async () => {
     const names = Array.from(
       { length: MAX_CONCURRENT_FETCHES + 1 },
       (_, index) => `f${index}`,
@@ -777,8 +777,9 @@ describe("feed refresh: the batch", () => {
     await flush();
     await vi.advanceTimersByTimeAsync(FEED_SOFT_TIMEOUT_MS + 1);
 
-    // Every worker gave up waiting, but the slow fetches still hold every slot.
-    expect(fetchedUrls(harness)).not.toContain(last);
+    // Parser admission can continue; the shared request service owns actual
+    // transport slots (including unabortable, timed-out requests).
+    expect(fetchedUrls(harness)).toContain(last);
 
     for (const name of names.slice(1, MAX_CONCURRENT_FETCHES)) {
       await settle(harness, url(name));

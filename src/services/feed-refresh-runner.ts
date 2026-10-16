@@ -8,7 +8,6 @@ import {
   FEED_SOFT_TIMEOUT_MS,
   MAX_CONCURRENT_FETCHES,
 } from "./feed-timeout";
-import { globalFetchSemaphore } from "./feed-parser/fetch-semaphore";
 import type { PreviewImageCache } from "./preview-image-cache";
 import {
   FEED_REFRESH_RENDER_THROTTLE_MS,
@@ -21,6 +20,7 @@ export interface RefreshDashboardViewLike {
   refreshSidebarOnly?: () => void;
   refreshFilterStatusBarOnly?: () => void;
   refreshGlobalRefreshProgressOnly?: () => void;
+  refreshReadingWorkbenchOnly?: () => void;
 }
 
 export type FeedRefreshIntent = "global" | "targeted" | "due" | "failed";
@@ -90,7 +90,9 @@ export class FeedRefreshRunner {
         return;
       }
 
-      const feedsToRefresh = this.getRefreshableFeeds(candidateFeeds);
+      const feedsToRefresh = this.getRefreshableFeeds(candidateFeeds)
+        .filter(feed => intent !== "due" || (feed.refreshRetryAt ?? 0) <= Date.now())
+        .sort((a, b) => Number(Boolean(a.lastFetchError)) - Number(Boolean(b.lastFetchError)) || a.lastUpdated - b.lastUpdated);
       if (feedsToRefresh.length === 0) {
         new Notice(
           selectedFeeds
@@ -222,10 +224,13 @@ export class FeedRefreshRunner {
   ): void {
     const completedAt = Date.now();
     if (updatedFeed) {
+      const failures = updatedFeed.lastFetchError ? (feed.refreshFailureCount ?? 0) + 1 : 0;
       this.mergeRefreshedFeed({
         ...updatedFeed,
         lastRefreshAttemptCompletedAt: completedAt,
         lastFetchError: updatedFeed.lastFetchError,
+        refreshFailureCount: failures,
+        refreshRetryAt: failures ? completedAt + Math.min(60, 5 * 2 ** Math.min(failures - 1, 4)) * 60000 : undefined,
       });
       if (!updatedFeed.lastFetchError) {
         this.options.clearFeedShardHealth(feed);
@@ -250,6 +255,8 @@ export class FeedRefreshRunner {
       ...storedFeed,
       lastRefreshAttemptCompletedAt: completedAt,
       lastFetchError: error instanceof Error ? error.message : String(error),
+      refreshFailureCount: (storedFeed.refreshFailureCount ?? 0) + 1,
+      refreshRetryAt: completedAt + Math.min(60, 5 * 2 ** Math.min(storedFeed.refreshFailureCount ?? 0, 4)) * 60000,
     };
   }
 
@@ -349,6 +356,7 @@ export class FeedRefreshRunner {
 
       const view = await this.options.getActiveDashboardView();
       if (view) {
+        view.refreshReadingWorkbenchOnly?.();
         if (force) {
           if (typeof view.refreshSidebarOnly === "function") {
             view.refreshSidebarOnly();
@@ -371,17 +379,14 @@ export class FeedRefreshRunner {
 
     const worker = async (): Promise<void> => {
       while (true) {
-        await globalFetchSemaphore.acquire();
 
         if (this.feedOperationTracker.isCancelled) {
-          globalFetchSemaphore.release();
           return;
         }
 
         const currentFeed = feedsToRefresh[nextFeedIndex];
         nextFeedIndex += 1;
         if (!currentFeed) {
-          globalFetchSemaphore.release();
           return;
         }
 
@@ -390,9 +395,7 @@ export class FeedRefreshRunner {
           refreshSummary,
           refreshView,
           cancelSignal,
-        ).finally(() => {
-          globalFetchSemaphore.release();
-        });
+        );
 
         const softTimeout = this.feedOperationTracker.createSoftTimeout(FEED_SOFT_TIMEOUT_MS, cancelSignal);
         const winner = await Promise.race([refreshPromise.then(() => "fetch" as const), softTimeout.promise]);

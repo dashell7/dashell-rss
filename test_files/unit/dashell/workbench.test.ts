@@ -81,6 +81,25 @@ afterEach(() => {
 });
 
 describe("Qiaomu-style reading workbench", () => {
+  it("waits for Chinese composition and keeps Escape available to the input method", async () => {
+    const { root, view, items } = surface();
+    items[0].title = "中文学习";
+    view.refresh();
+    view.toggleSearch(true);
+    const search = root.querySelector<HTMLInputElement>('input[type="search"]')!;
+    search.dispatchEvent(new CompositionEvent("compositionstart"));
+    search.value = "zhong";
+    search.dispatchEvent(new InputEvent("input", { isComposing: true }));
+    search.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", isComposing: true }));
+    await new Promise(resolve => window.setTimeout(resolve, 160));
+    expect(root.querySelectorAll(".rss-workbench-entry")).toHaveLength(3);
+    expect(root.querySelector<HTMLElement>(".rss-workbench-search")!.hidden).toBe(false);
+    search.value = "中文";
+    search.dispatchEvent(new CompositionEvent("compositionend"));
+    await vi.waitFor(() => expect(root.querySelectorAll(".rss-workbench-entry")).toHaveLength(1));
+    expect(root.querySelector(".rss-workbench-entry")?.textContent).toContain("中文学习");
+    view.dispose();
+  });
   it("keeps the article list alongside the selected text and returns to it after folding", async () => {
     const { root, view, items } = surface();
     await view.open(items[0]);

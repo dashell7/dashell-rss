@@ -258,6 +258,8 @@ type UpdatedItemCore = Pick<
   | "author"
   | "read"
   | "starred"
+  | "readLaterAt"
+  | "lastOpenedAt"
   | "saved"
   | "savedFilePath"
   | "feedTitle"
@@ -284,6 +286,8 @@ function buildUpdatedItemCore(
     author: item.author || request.parsed.author || existingItem.author,
     read: existingItem.read,
     starred: existingItem.starred,
+    readLaterAt: existingItem.readLaterAt,
+    lastOpenedAt: existingItem.lastOpenedAt,
     saved: existingItem.saved,
     savedFilePath: existingItem.savedFilePath,
     feedTitle: request.newFeed.title, // Update feedTitle to match the new feed title

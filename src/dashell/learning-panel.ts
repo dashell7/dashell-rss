@@ -117,7 +117,8 @@ export function versionControls(
   for (const variant of variants)
     select.createEl("option", { value: variant.mode, text: variant.label });
   select.disabled = variants.length === 1;
-  select.addEventListener("change", () => {
+  const root = container.closest<HTMLElement>(".rss-dashell-reader");
+  const display = (resetScroll: boolean) => {
     const variant = variants.find((value) => value.mode === select.value);
     if (!variant) return;
     if (variant.mode === "original") body.replaceChildren(...originalNodes);
@@ -131,7 +132,16 @@ export function versionControls(
           item.link || undefined,
         ),
       );
-    container.scrollTop = 0;
+    if (resetScroll) container.scrollTop = 0;
+  };
+  select.value = variants.some(variant => variant.mode === root?.dataset.rssRequestedMode)
+    ? root?.dataset.rssRequestedMode ?? "original" : "original";
+  display(false);
+  select.addEventListener("change", () => {
+    if (root) root.dataset.rssRequestedMode = select.value;
+    const EventConstructor = container.ownerDocument.defaultView?.Event;
+    if (root && EventConstructor) root.dispatchEvent(new EventConstructor("rss-reading-mode"));
+    display(true);
   });
   return () => {
     label.remove();

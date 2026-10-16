@@ -296,7 +296,7 @@ describe("background import orchestration", () => {
     expect(mockParseFeed).toHaveBeenCalledTimes(MAX_CONCURRENT_FETCHES + 2);
   });
 
-  it("detaches slow feeds after the soft timeout while keeping their semaphore slots", async () => {
+  it("starts the next parser after a soft timeout and waits for detached results", async () => {
     vi.useFakeTimers();
     const plugin = createPlugin();
     const resolvers: Array<() => void> = [];
@@ -327,7 +327,10 @@ describe("background import orchestration", () => {
     await vi.advanceTimersByTimeAsync(FEED_SOFT_TIMEOUT_MS);
     await flushMicrotasks();
 
-    expect(mockParseFeed).toHaveBeenCalledTimes(MAX_CONCURRENT_FETCHES);
+    // Network slots are owned by ReadRequests, not these parser mocks. The
+    // import worker may queue the next feed while earlier transports settle.
+    expect(mockParseFeed).toHaveBeenCalledTimes(MAX_CONCURRENT_FETCHES + 1);
+    expect((plugin as unknown as PluginWithInternal).isBackgroundImporting).toBe(true);
 
     resolvers[0]?.();
     await flushMicrotasks();

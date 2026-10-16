@@ -32,7 +32,9 @@ function serve(pages: Record<string, string>): string[] {
     requested.push(url);
     const page = pages[url];
     if (page === undefined) {
-      return Promise.reject(new Error("not found")) as never;
+      // Missing discovery paths are HTTP 404s, not repeated network outages
+      // that would correctly activate the shared origin cooldown.
+      return Promise.resolve({ ...response(""), status: 404 }) as never;
     }
     return Promise.resolve(response(page)) as never;
   });

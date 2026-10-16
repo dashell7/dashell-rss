@@ -1,7 +1,6 @@
 import {
   App,
   normalizePath,
-  requestUrl,
   type PluginManifest,
 } from "obsidian";
 import {
@@ -13,6 +12,7 @@ import {
 } from "../types/types";
 import { ImageCacheService } from "./image-cache-service";
 import { resolveArticlePreviewImage } from "../utils/article-preview-utils";
+import { readRequest } from "../utils/read-request";
 
 /** At most this many preview images are fetched at the same time. */
 const MAX_CONCURRENT_WARM_FETCHES = 2;
@@ -89,7 +89,7 @@ export class PreviewImageCache {
         `${manifest.dir ?? `${this.app.vault.configDir}/plugins/${manifest.id}`}/image-cache`,
       ),
       fetchImage: async (url) => {
-        const response = await requestUrl({ url, method: "GET" });
+        const response = await readRequest({ url, method: "GET", throw: false }, { priority: 2 });
         return {
           status: response.status,
           headers: response.headers,
@@ -105,6 +105,60 @@ export class PreviewImageCache {
   public resolveCachedUrl(remoteUrl: string): string | null {
     if (!this.options.getSettings().display.allowImageCaching) return null;
     return this.service?.resolveCachedUrl(remoteUrl) ?? null;
+  }
+
+  /** Decode and display before the serialized disk write completes. Object URLs belong to this article. */
+  public prepareArticleImages(root: HTMLElement): () => void {
+    const urls = new Set<string>();
+    const removeListeners: Array<() => void> = [];
+    const pending = new Map<Element, () => void>();
+    let closed = false;
+    const enabled = () => !closed && !this.disposed && this.options.getSettings().display.allowImageCaching;
+    const Observer = root.ownerDocument.defaultView?.IntersectionObserver;
+    const observer = Observer ? new Observer(entries => {
+      for (const entry of entries) if (entry.isIntersecting) {
+        const show = pending.get(entry.target);
+        pending.delete(entry.target);
+        observer?.unobserve(entry.target);
+        if (enabled()) show?.();
+      }
+    }, { rootMargin: "200px" }) : undefined;
+    const whenVisible = (image: HTMLImageElement, show: () => void) => {
+      if (observer) { pending.set(image, show); observer.observe(image); }
+      else show();
+    };
+    for (const image of Array.from(root.querySelectorAll('img')).slice(0, 64)) {
+      const source = image.getAttribute('src');
+      if (!source || !/^https?:\/\//i.test(source) || !enabled() || !this.service) continue;
+      const show = () => {
+        void this.service?.cacheUrl(source, false, response => {
+          if (!enabled() || !root.contains(image)) return;
+          const url = URL.createObjectURL(new Blob([response.arrayBuffer], { type: response.headers['content-type'] ?? 'image/png' }));
+          urls.add(url);
+          image.removeAttribute('srcset');
+          image.setAttribute('src', url);
+        });
+      };
+      const cached = this.service.resolveCachedUrl(source);
+      if (cached) {
+        image.removeAttribute('srcset');
+        image.src = cached;
+        const retry = () => {
+          if (!enabled()) return;
+          void this.service?.removeUrls([source]).then(() => { if (enabled()) whenVisible(image, show); });
+        };
+        image.addEventListener('error', retry, { once: true });
+        removeListeners.push(() => image.removeEventListener('error', retry));
+      } else whenVisible(image, show);
+    }
+    return () => {
+      closed = true;
+      observer?.disconnect();
+      pending.clear();
+      for (const remove of removeListeners) remove();
+      for (const url of urls) URL.revokeObjectURL(url);
+      urls.clear();
+    };
   }
 
   public getSizeBytes(): number {

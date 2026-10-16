@@ -20,6 +20,8 @@ Qiaomu AI RSS release. The combined derivative is GPL-3.0-only; see LICENSE.
 
 - Source: https://github.com/joeseesun/qiaomu-ai-rss
 - Reference: ac2c792bfebe4604bc30d2e3ae3af6387c918c2b
+- Additional references: 0.27.4 (7c1077c314d2c42c4d915149f2c235335a66fccf),
+  and 0.29.2 (0133ff24e9bca914de1d3f47e63e94220baf029a).
 - Copyright (c) 向阳乔木
 - License: GPL-3.0-only, preserved in LICENSE.
 - Adapted sources: src/content.ts (safe HTML/Markdown rendering),
@@ -30,6 +32,9 @@ Qiaomu AI RSS release. The combined derivative is GPL-3.0-only; see LICENSE.
 - Changes: FeedItem and Dashell material adapters; native RSS Dashboard
   navigation/state/actions; only available source versions are offered;
   existing reader-format settings and host/Velocity theme variables apply.
+- Later adaptations: namespace-safe Atom fields, request sharing and recovery,
+  cache-first reading, variable-height bounded lists and Chinese input handling.
+  These use Dashell's existing storage, transport and reading workbench.
 - Qiaomu's proprietary content service, accounts and curated feeds are not
   bundled or implied by this adaptation. Source-provided translation and
   rewrite variants are not an on-demand AI service.
@@ -42,4 +47,4 @@ Qiaomu AI RSS release. The combined derivative is GPL-3.0-only; see LICENSE.
 
 The existing RSS Dashboard dependencies retain their original licenses and
 bundle notices. Source snapshots, tests and build instructions must accompany
-any future GPL binary distribution. This working tree has not been published.
+any future GPL binary distribution. Unreleased changes are documented in CHANGELOG.md.

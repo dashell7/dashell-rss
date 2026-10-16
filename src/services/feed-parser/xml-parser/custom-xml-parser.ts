@@ -11,7 +11,7 @@ import {
   fallbackParse,
   preprocessXmlContent,
 } from "./xml-preprocessing.js";
-import { parseAtom } from "./atom-parser.js";
+import { atomRoot, parseAtom } from "./atom-parser.js";
 import { parseJSON } from "./json-feed-parser.js";
 import { parseRSS, parseRSS1 } from "./rss-parser.js";
 
@@ -362,7 +362,7 @@ export class CustomXMLParser {
     const hasRSS = doc.querySelector("rss");
     if (hasRSS) return true;
 
-    const hasAtom = doc.querySelector("feed");
+    const hasAtom = atomRoot(doc);
     if (hasAtom) return true;
 
     const rootElement = doc.documentElement;
@@ -526,7 +526,7 @@ export class CustomXMLParser {
                 return parseRSS1(extractedDoc, this.getRssParserDeps());
               } else if (extractedDoc.querySelector("rss")) {
                 return parseRSS(extractedDoc, this.getRssParserDeps());
-              } else if (extractedDoc.querySelector("feed")) {
+              } else if (atomRoot(extractedDoc)) {
                 return parseAtom(extractedDoc, this.getAtomParserDeps());
               }
             }
@@ -555,7 +555,7 @@ export class CustomXMLParser {
         return parseRSS1(doc, this.getRssParserDeps());
       } else if (doc.querySelector("rss")) {
         return parseRSS(doc, this.getRssParserDeps());
-      } else if (doc.querySelector("feed")) {
+      } else if (atomRoot(doc)) {
         return parseAtom(doc, this.getAtomParserDeps());
       } else {
         return fallbackParse(xmlString, this.getFallbackParseDeps());

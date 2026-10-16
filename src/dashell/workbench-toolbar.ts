@@ -46,6 +46,8 @@ export function workbenchToolbar(options: {
   );
   bookmark.setAttribute("aria-pressed", String(!!item.starred));
   bookmark.toggleClass("is-bookmarked", !!item.starred);
+  const later = readerIcon(actions, "clock", item.readLaterAt ? "移出稍后读" : "稍后读", () => options.update({ readLaterAt: item.readLaterAt ? undefined : Date.now() }));
+  later.setAttribute("aria-pressed", String(!!item.readLaterAt));
   readerIcon(
     actions,
     item.read ? "circle-check" : "circle",
@@ -77,6 +79,7 @@ export function workbenchMenu(options: {
   reload: () => void;
   pickChannel: () => void;
   manageFeeds: () => void;
+  statistics?: () => void;
   back?: () => void;
 }): void {
   const { anchor, item } = options;
@@ -108,6 +111,7 @@ export function workbenchMenu(options: {
   menu.addItem((entry) =>
     entry.setTitle("选择频道").setIcon("rss").onClick(options.pickChannel),
   );
+  if (options.statistics) menu.addItem(entry => entry.setTitle("订阅统计").setIcon("chart-no-axes-column").onClick(options.statistics!));
   menu.addItem((entry) =>
     entry
       .setTitle("管理订阅")

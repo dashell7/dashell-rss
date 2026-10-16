@@ -97,6 +97,71 @@
   transform: translateY(0);
 }
 
+.rss-dashboard-about-contact-list {
+  margin-top: 18px;
+  border-top: 1px solid var(--background-modifier-border);
+  text-align: left;
+}
+
+.rss-dashboard-about-contact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+}
+
+.rss-dashboard-about-contact-value {
+  color: var(--text-normal);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.rss-dashboard-about-qr {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 160px);
+  align-items: center;
+  gap: 18px;
+  padding: 14px 2px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  text-align: left;
+}
+
+.rss-dashboard-about-qr-title {
+  color: var(--text-normal);
+  font-weight: 600;
+}
+
+.rss-dashboard-about-qr-description {
+  margin-top: 4px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.rss-dashboard-about-qr-image {
+  display: block;
+  width: 100%;
+  max-width: 160px;
+  aspect-ratio: 1;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #fff;
+}
+
+@media (max-width: 480px) {
+  .rss-dashboard-about-qr {
+    grid-template-columns: minmax(0, 1fr) minmax(112px, 140px);
+    gap: 12px;
+  }
+
+  .rss-dashboard-about-qr-image {
+    max-width: 140px;
+  }
+}
+
 /* ============================================
  * 2. Support Surface
  * ============================================ */

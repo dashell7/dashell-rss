@@ -77,7 +77,7 @@ describe("fetchFeedXml", () => {
 
   it("returns a valid JSON Feed from a configured proxy", async () => {
     vi.spyOn(obsidian, "requestUrl")
-      .mockRejectedValueOnce(new Error("direct fetch failed"))
+      .mockResolvedValueOnce({ ...mockRequestUrlResponse(""), status: 404 })
       .mockResolvedValueOnce(mockRequestUrlResponse(JSON_FEED_BASIC));
 
     const text = await fetchFeedXml(
@@ -98,7 +98,7 @@ describe("fetchFeedXml", () => {
 
   it("returns a valid JSON Feed from the AllOrigins fallback", async () => {
     vi.spyOn(obsidian, "requestUrl")
-      .mockRejectedValueOnce(new Error("direct fetch failed"))
+      .mockResolvedValueOnce({ ...mockRequestUrlResponse(""), status: 404 })
       .mockResolvedValueOnce(
         mockRequestUrlResponse(JSON.stringify({ contents: JSON_FEED_BASIC })),
       );
@@ -144,22 +144,23 @@ describe("fetchFeedXml", () => {
   });
 
   it("does not use proxies if proxyConfig.enabled is false", async () => {
-    vi.spyOn(obsidian, "requestUrl").mockRejectedValueOnce(
-      new Error("direct fetch failed"),
-    );
+    vi.spyOn(obsidian, "requestUrl").mockResolvedValueOnce({
+      ...mockRequestUrlResponse(""), status: 404,
+    });
 
     await expect(
       fetchFeedXml("https://example.com/feed.xml", { enabled: false, url: "" }),
-    ).rejects.toThrow("direct fetch failed");
+    ).rejects.toThrow("404");
 
     // requestUrl should only be called once (for the direct fetch)
     expect(obsidian.requestUrl).toHaveBeenCalledTimes(1);
   });
 
   it("uses a specific proxy if proxyConfig.url is a specific URL", async () => {
+    // HTTP 404s model unavailable sources; network retries are tested separately.
     // 1st call: direct fetch fails
     vi.spyOn(obsidian, "requestUrl")
-      .mockRejectedValueOnce(new Error("direct fetch failed"))
+      .mockResolvedValueOnce({ ...mockRequestUrlResponse(""), status: 404 })
       // 2nd call: proxy succeeds
       .mockResolvedValueOnce(mockRequestUrlResponse(RSS2_BASIC));
 
@@ -180,7 +181,7 @@ describe("fetchFeedXml", () => {
 
   it("applies the manual encoding to a raw custom proxy response", async () => {
     vi.spyOn(obsidian, "requestUrl")
-      .mockRejectedValueOnce(new Error("direct fetch failed"))
+      .mockResolvedValueOnce({ ...mockRequestUrlResponse(""), status: 404 })
       .mockResolvedValueOnce(mockWindows1251Response(false));
 
     const xml = await fetchFeedXml(
@@ -195,7 +196,7 @@ describe("fetchFeedXml", () => {
 
   it("does not apply the feed override to an RSS2JSON envelope", async () => {
     vi.spyOn(obsidian, "requestUrl")
-      .mockRejectedValueOnce(new Error("direct fetch failed"))
+      .mockResolvedValueOnce({ ...mockRequestUrlResponse(""), status: 404 })
       .mockResolvedValueOnce(
         mockRequestUrlResponse(
           JSON.stringify({
@@ -218,7 +219,7 @@ describe("fetchFeedXml", () => {
 
   it("omits the channel language when the RSS2JSON feed reports none", async () => {
     vi.spyOn(obsidian, "requestUrl")
-      .mockRejectedValueOnce(new Error("direct fetch failed"))
+      .mockResolvedValueOnce({ ...mockRequestUrlResponse(""), status: 404 })
       .mockResolvedValueOnce(
         mockRequestUrlResponse(
           JSON.stringify({
@@ -239,7 +240,7 @@ describe("fetchFeedXml", () => {
 
   it("preserves the channel language the RSS2JSON feed reports", async () => {
     vi.spyOn(obsidian, "requestUrl")
-      .mockRejectedValueOnce(new Error("direct fetch failed"))
+      .mockResolvedValueOnce({ ...mockRequestUrlResponse(""), status: 404 })
       .mockResolvedValueOnce(
         mockRequestUrlResponse(
           JSON.stringify({
@@ -264,7 +265,7 @@ describe("fetchFeedXml", () => {
 
   it("omits the item pubDate when the RSS2JSON item reports none", async () => {
     vi.spyOn(obsidian, "requestUrl")
-      .mockRejectedValueOnce(new Error("direct fetch failed"))
+      .mockResolvedValueOnce({ ...mockRequestUrlResponse(""), status: 404 })
       .mockResolvedValueOnce(
         mockRequestUrlResponse(
           JSON.stringify({
@@ -285,7 +286,7 @@ describe("fetchFeedXml", () => {
 
   it("preserves the item pubDate the RSS2JSON item reports", async () => {
     vi.spyOn(obsidian, "requestUrl")
-      .mockRejectedValueOnce(new Error("direct fetch failed"))
+      .mockResolvedValueOnce({ ...mockRequestUrlResponse(""), status: 404 })
       .mockResolvedValueOnce(
         mockRequestUrlResponse(
           JSON.stringify({
@@ -313,11 +314,11 @@ describe("fetchFeedXml", () => {
   it("cycles through PREDEFINED_PROXIES if proxyConfig.url is 'auto'", async () => {
     // 1st call: direct fetch fails
     vi.spyOn(obsidian, "requestUrl")
-      .mockRejectedValueOnce(new Error("direct fetch failed"))
+      .mockResolvedValueOnce({ ...mockRequestUrlResponse(""), status: 404 })
       // 2nd call: 1st proxy fails
-      .mockRejectedValueOnce(new Error("proxy 1 failed"))
+      .mockResolvedValueOnce({ ...mockRequestUrlResponse(""), status: 404 })
       // 3rd call: 2nd proxy fails
-      .mockRejectedValueOnce(new Error("proxy 2 failed"))
+      .mockResolvedValueOnce({ ...mockRequestUrlResponse(""), status: 404 })
       // 4th call: 3rd proxy succeeds
       .mockResolvedValueOnce(mockRequestUrlResponse(RSS2_BASIC));
 
@@ -335,12 +336,12 @@ describe("fetchFeedXml", () => {
     // 1st call: direct fetch fails, then 5 more proxy failures (total 6 failures)
     // 7th call: RSS2JSON succeeds
     vi.spyOn(obsidian, "requestUrl")
-      .mockRejectedValueOnce(new Error("fail")) // call 1
-      .mockRejectedValueOnce(new Error("fail")) // call 2
-      .mockRejectedValueOnce(new Error("fail")) // call 3
-      .mockRejectedValueOnce(new Error("fail")) // call 4
-      .mockRejectedValueOnce(new Error("fail")) // call 5
-      .mockRejectedValueOnce(new Error("fail")) // call 6
+      .mockResolvedValueOnce({ ...mockRequestUrlResponse(""), status: 404 }) // call 1
+      .mockResolvedValueOnce({ ...mockRequestUrlResponse(""), status: 404 }) // call 2
+      .mockResolvedValueOnce({ ...mockRequestUrlResponse(""), status: 404 }) // call 3
+      .mockResolvedValueOnce({ ...mockRequestUrlResponse(""), status: 404 }) // call 4
+      .mockResolvedValueOnce({ ...mockRequestUrlResponse(""), status: 404 }) // call 5
+      .mockResolvedValueOnce({ ...mockRequestUrlResponse(""), status: 404 }) // call 6
       .mockResolvedValueOnce(
         mockRequestUrlResponse(
           JSON.stringify({
@@ -356,6 +357,9 @@ describe("fetchFeedXml", () => {
       url: "auto",
     });
 
+    expect(obsidian.requestUrl).toHaveBeenLastCalledWith(expect.objectContaining({
+      url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fexample.com%2Ffeed.xml",
+    }));
     expect(xml).toContain("<rss");
     expect(xml).toContain("JSON Feed");
     expect(xml).toContain("Item 1");
@@ -375,7 +379,7 @@ describe("fetchFeedXml - RSS2JSON XML escaping", () => {
   // RSS2JSON proxy answers with the crafted envelope.
   async function fetchRebuiltRss(payload: unknown): Promise<string> {
     vi.spyOn(obsidian, "requestUrl")
-      .mockRejectedValueOnce(new Error("direct fetch failed"))
+      .mockResolvedValueOnce({ ...mockRequestUrlResponse(""), status: 404 })
       .mockResolvedValueOnce(
         mockRequestUrlResponse(JSON.stringify(payload)),
       );

@@ -12,8 +12,8 @@ import {
   ChannelPicker,
   channelChoices,
   entryId,
-  renderEntry,
 } from "./workbench-list";
+import { WorkbenchWindow } from "./workbench-window";
 import {
   newChannel,
   workspacePreferences,
@@ -22,6 +22,8 @@ import {
 } from "./workbench-state";
 import { displayError } from "./safety";
 import { restoreReadingScroll } from "./workbench-scroll";
+import { bindWorkbenchHotkeys } from "./workbench-hotkeys";
+import { DashellSourceHealthModal } from "../modals/dashell-source-health-modal";
 
 export class ReadingWorkbench {
   private prefs;
@@ -36,13 +38,18 @@ export class ReadingWorkbench {
   private body: HTMLElement | null = null;
   private request = 0;
   private timer: number | null = null;
-  private limit = 80;
+  private listWindow: WorkbenchWindow;
+  private searchTimer: number | null = null;
+  private composing = false;
   private closed = false;
   private cleanupArticle?: () => void;
   private clearScroll?: () => void;
   private clearResize: () => void;
   private formatPortal?: ReturnType<typeof createReaderFormatPortal>;
   private unreadSession = new Set<string>();
+  private laterSession = new Set<string>();
+  private clearHotkeys: () => void = () => undefined;
+  private clearMode: () => void = () => undefined;
 
   constructor(private options: WorkbenchOptions) {
     this.prefs = workspacePreferences(options.settings.dashellWorkspace);
@@ -95,19 +102,16 @@ export class ReadingWorkbench {
       this.search.value = "";
       this.state.query = "";
       this.clearSearch.hidden = true;
-      this.renderList();
+      this.cancelSearch();
+      this.renderList(true);
       this.scheduleSave();
       this.search.focus();
     });
-    this.search.addEventListener("input", () => {
-      this.state.query = this.search.value.slice(0, 500);
-      this.limit = 80;
-      this.clearSearch.hidden = !this.state.query;
-      this.renderList();
-      this.scheduleSave();
-    });
+    this.search.addEventListener("compositionstart", () => { this.composing = true; this.cancelSearch(); });
+    this.search.addEventListener("compositionend", () => { this.composing = false; this.queueSearch(); });
+    this.search.addEventListener("input", () => { if (!this.composing) this.queueSearch(); });
     this.search.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && !event.isComposing && !this.composing) {
         event.stopPropagation();
         this.toggleSearch(false);
       }
@@ -116,6 +120,7 @@ export class ReadingWorkbench {
       cls: "rss-workbench-list",
       attr: { tabindex: "0", "aria-label": "文章列表" },
     });
+    this.listWindow = new WorkbenchWindow(this.list, item => { void this.open(item); });
     const handle = layout.createDiv({
       cls: "rss-workbench-resize",
       attr: {
@@ -144,6 +149,7 @@ export class ReadingWorkbench {
       cls: "rss-workbench-reader",
       attr: { tabindex: "0", "aria-label": "文章正文" },
     });
+    this.bindInputs();
     this.list.addEventListener("scroll", () => this.scheduleSave());
     applyWorkbenchFormat(root, options.settings.readerFormat);
     this.refresh();
@@ -156,10 +162,57 @@ export class ReadingWorkbench {
       (this.prefs.channels[this.prefs.channel] = newChannel())
     );
   }
+  private bindInputs(): void {
+    const root = this.options.root;
+    const mode = () => {
+      const value = root.dataset.rssRequestedMode;
+      this.state.readingMode = value === "translation" || value === "rewrite" ? value : "original";
+      this.scheduleSave();
+    };
+    root.addEventListener("rss-reading-mode", mode);
+    this.clearMode = () => root.removeEventListener("rss-reading-mode", mode);
+    this.clearHotkeys = bindWorkbenchHotkeys(root, {
+      j: () => this.navigate(1), k: () => this.navigate(-1),
+      "[": () => this.focusList(), "]": () => this.focusReader(),
+      "/": () => this.toggleSearch(true),
+      f: () => { if (this.selected) this.change(this.selected, { starred: !this.selected.starred }); },
+      u: () => { if (this.selected) this.change(this.selected, { read: !this.selected.read }); },
+      m: () => { if (this.selected) this.change(this.selected, { readLaterAt: this.selected.readLaterAt ? undefined : Date.now() }); },
+      e: () => { if (this.selected && this.options.saveExcerpt) this.excerpt(this.selected); },
+      o: () => {
+        const url = this.selected?.link;
+        if (url && /^https?:\/\//i.test(url)) root.ownerDocument.defaultView?.open(url, "_blank", "noopener,noreferrer");
+      },
+    });
+  }
+  private change(item: FeedItem, changes: Partial<FeedItem>): void {
+    if (changes.readLaterAt && !item.readLaterAt && this.options.items().filter(value => value.readLaterAt).length >= 200) {
+      new Notice("稍后读已满，请先阅读或移除一些文章。");
+      return;
+    }
+    void this.run(async () => { await this.options.update(item, changes); this.refresh(); });
+  }
   private remember(): void {
-    if (this.list.clientHeight) this.state.listTop = this.list.scrollTop;
+    if (this.list.clientHeight) {
+      this.state.listTop = this.list.scrollTop;
+      this.state.listAnchor = this.listWindow.anchor();
+    }
     if (this.body?.clientHeight && this.selected)
       this.state.readerTop = this.body.scrollTop;
+  }
+  private cancelSearch(): void {
+    if (this.searchTimer !== null) window.clearTimeout(this.searchTimer);
+    this.searchTimer = null;
+  }
+  private queueSearch(): void {
+    this.state.query = this.search.value.slice(0, 500);
+    this.clearSearch.hidden = !this.state.query;
+    this.cancelSearch();
+    this.searchTimer = window.setTimeout(() => {
+      this.searchTimer = null;
+      if (!this.closed) this.renderList(true);
+    }, 120);
+    this.scheduleSave();
   }
   private scheduleSave(): void {
     if (this.closed) return;
@@ -216,50 +269,27 @@ export class ReadingWorkbench {
       .items()
       .filter(
         (item) =>
-          urls.has(item.feedUrl) &&
+          (this.state.filter === "later" || urls.has(item.feedUrl)) &&
           (this.state.filter !== "unread" ||
             !item.read ||
             this.unreadSession.has(entryId(item))) &&
           (this.state.filter !== "favorites" || item.starred) &&
+          (this.state.filter !== "later" || item.readLaterAt || this.laterSession.has(entryId(item))) &&
           (!query ||
             `${item.title} ${item.description} ${item.content ?? ""}`
               .toLocaleLowerCase()
               .includes(query)),
-      );
+      ).sort((a, b) => this.state.filter === "later" ? (a.readLaterAt ?? Number.MAX_SAFE_INTEGER) - (b.readLaterAt ?? Number.MAX_SAFE_INTEGER) : 0);
   }
-  private renderList(): void {
-    const top = this.list.scrollTop;
-    this.list.empty();
+  private renderList(reset = false): void {
+    this.list.querySelector(".rss-workbench-empty")?.remove();
     const items = this.filtered();
-    for (const item of items.slice(0, this.limit)) {
-      renderEntry(
-        this.list,
-        item,
-        !!this.selected && entryId(item) === entryId(this.selected),
-        () => {
-          void this.open(item);
-        },
-      );
-    }
-    if (!items.length)
-      this.list.createDiv({
-        cls: "rss-workbench-empty",
-        text: this.options.feeds().length
-          ? "没有符合条件的文章"
-          : "尚未添加订阅",
-      });
-    if (items.length > this.limit) {
-      const more = this.list.createEl("button", {
-        cls: "rss-workbench-load-more",
-        text: "加载更多",
-        attr: { type: "button" },
-      });
-      more.addEventListener("click", () => {
-        this.limit += 80;
-        this.renderList();
-      });
-    }
-    this.list.scrollTop = top;
+    this.listWindow.update(items, this.selected ? entryId(this.selected) : "");
+    if (reset) { this.listWindow.restore(undefined, 0); this.listWindow.render(); }
+    if (!items.length) this.list.createDiv({
+      cls: "rss-workbench-empty",
+      text: this.options.feeds().length ? "没有符合条件的文章" : "尚未添加订阅",
+    });
   }
   private renderFilters(): void {
     this.filters.empty();
@@ -267,6 +297,7 @@ export class ReadingWorkbench {
       ["all", "全部"],
       ["unread", "未读"],
       ["favorites", "收藏"],
+      ["later", "稍后"],
     ] as const) {
       const button = this.filters.createEl("button", {
         text: label,
@@ -282,17 +313,20 @@ export class ReadingWorkbench {
   setFilter(filter: ReadingFilter): void {
     this.state.filter = filter;
     this.unreadSession.clear();
-    this.limit = 80;
+    this.laterSession.clear();
+    this.cancelSearch();
     this.renderFilters();
-    this.renderList();
+    this.renderList(true);
     this.scheduleSave();
   }
   setChannel(channel: string): void {
     if (this.closed || this.prefs.channel === channel) return;
+    this.cancelSearch();
+    this.composing = false;
     this.remember();
     this.prefs.channel = channel;
-    this.limit = 80;
     this.unreadSession.clear();
+    this.laterSession.clear();
     this.clearArticle();
     this.selected = null;
     this.restoreChannel();
@@ -300,11 +334,13 @@ export class ReadingWorkbench {
     this.scheduleSave();
   }
   private restoreChannel(): void {
+    this.options.root.dataset.rssRequestedMode = this.state.readingMode ?? "original";
     this.search.value = this.state.query;
     this.searchBox.hidden = !this.state.query;
     this.clearSearch.hidden = !this.state.query;
     this.renderList();
-    this.list.scrollTop = this.state.listTop;
+    this.listWindow.restore(this.state.listAnchor, this.state.listTop);
+    this.listWindow.render();
     const selected = this.filtered().find(
       (item) => entryId(item) === this.state.selectedId,
     );
@@ -347,7 +383,7 @@ export class ReadingWorkbench {
       ? items.findIndex((item) => entryId(item) === entryId(this.selected!))
       : -1;
     const next = items[index < 0 ? 0 : index + direction];
-    if (next) void this.open(next);
+    if (next) { this.listWindow.scrollTo(entryId(next)); void this.open(next); }
   }
   async open(item: FeedItem, restore = false): Promise<void> {
     if (this.closed) return;
@@ -376,8 +412,8 @@ export class ReadingWorkbench {
     });
     body.addEventListener("scroll", () => this.scheduleSave());
     try {
-      if (!item.read && this.options.settings.display.autoMarkReadOnOpen)
-        await this.options.update(item, { read: true });
+      if (item.readLaterAt && this.state.filter === "later") this.laterSession.add(entryId(item));
+      await this.options.update(item, { lastOpenedAt: Date.now(), readLaterAt: undefined, ...(!item.read && this.options.settings.display.autoMarkReadOnOpen ? { read: true } : {}) });
       if (this.closed || request !== this.request) return;
       body.empty();
       const cleanup = await this.options.renderArticle(body, item);
@@ -429,10 +465,7 @@ export class ReadingWorkbench {
       fold: () => this.toggleList(),
       navigate: (direction) => this.navigate(direction),
       update: (changes) => {
-        void this.run(async () => {
-          await this.options.update(item, changes);
-          this.refresh();
-        });
+        this.change(item, changes);
       },
       save: () => {
         void this.run(async () => {
@@ -451,6 +484,7 @@ export class ReadingWorkbench {
           },
           pickChannel: () => this.pickChannel(),
           manageFeeds: this.options.manageFeeds,
+          statistics: this.options.app ? () => new DashellSourceHealthModal(this.options.app!, this.options.feeds, this.options.savePreferences).open() : undefined,
           back: this.options.back,
         }),
     });
@@ -505,6 +539,10 @@ export class ReadingWorkbench {
     if (this.timer !== null) window.clearTimeout(this.timer);
     this.timer = null;
     this.clearResize();
+    this.clearHotkeys();
+    this.clearMode();
+    this.cancelSearch();
+    this.listWindow.dispose();
     this.clearArticle();
     void this.run(this.options.savePreferences);
   }

@@ -1,4 +1,5 @@
-import { requestUrl, type RequestUrlResponse } from "obsidian";
+import { readRequest } from "../utils/read-request";
+import { type RequestUrlResponse } from "obsidian";
 import { safeUrl, UserError } from "./safety";
 
 export interface Network {
@@ -10,7 +11,7 @@ async function response(url: string): Promise<RequestUrlResponse> {
   let timer: number | undefined;
   try {
     const result = await Promise.race([
-      requestUrl({ url, throw: false }),
+      readRequest({ url, throw: false }, { priority: 0 }),
       new Promise<never>((_, reject) => {
         timer = window.setTimeout(
           () => reject(new UserError("请求超时，请重试。")),

@@ -1,6 +1,7 @@
-import { requestUrl, Platform } from "obsidian";
+import { readRequest } from "../../utils/read-request";
+import { Platform } from "obsidian";
 import { PREDEFINED_PROXIES } from "../../utils/proxy-utils.js";
-import { robustFetch } from "../../utils/platform-utils.js";
+import { robustFetch, robustFetchDetailed } from "../../utils/platform-utils.js";
 import { escapeCdata, escapeXml } from "../../utils/xml-escape.js";
 import { hostMatches } from "../../utils/url-host.js";
 import { resolveAbsoluteHttpUrl } from "../../utils/url-utils.js";
@@ -18,6 +19,12 @@ export type FeedFetchProxyConfig = {
 };
 
 export type FeedFetchProxyOption = boolean | FeedFetchProxyConfig;
+export interface FeedValidators {
+  etag?: string;
+  lastModified?: string;
+  status?: number;
+  responseHeaders?: Record<string, string>;
+}
 
 function normalizeProxyConfig(
   proxyConfig: FeedFetchProxyOption,
@@ -251,6 +258,7 @@ export async function fetchFeedXml(
   proxyConfig: FeedFetchProxyOption = true,
   signal?: AbortSignal,
   encodingOverride?: FeedEncoding,
+  validators?: FeedValidators,
 ): Promise<string> {
   const isAndroid = Platform.isAndroidApp;
   const config = normalizeProxyConfig(proxyConfig);
@@ -335,16 +343,24 @@ export async function fetchFeedXml(
     if (signal?.aborted) throw new Error("Timed out");
     try {
       const secureUrl = targetUrl; // try original URL as-is first (don't force https)
-      const responseText = await robustFetch(secureUrl, {
+      const response = await robustFetchDetailed(secureUrl, {
         method: "GET",
         headers: {
           "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
           Accept:
             "application/feed+json, application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+          ...(targetUrl === url && validators?.etag ? { "If-None-Match": validators.etag } : {}),
+          ...(targetUrl === url && validators?.lastModified ? { "If-Modified-Since": validators.lastModified } : {}),
         },
         encodingOverride,
       });
+      if (targetUrl === url && validators) {
+        validators.status = response.status;
+        validators.responseHeaders = response.headers;
+      }
+      if (response.status === 304 && targetUrl === url && validators) return "";
+      const responseText = response.text;
 
       if (!responseText) {
         throw new Error("Empty response from feed");
@@ -523,7 +539,7 @@ export async function fetchFeedXml(
       if (signal?.aborted) throw new Error("Timed out");
       try {
         const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-        const proxyResponse = await requestUrl({
+        const proxyResponse = await readRequest({
           url: allOriginsUrl,
           method: "GET",
         });
@@ -682,7 +698,7 @@ export async function fetchFeedXml(
       if (signal?.aborted) throw new Error("Timed out");
       try {
         const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
-        const proxyResponse = await requestUrl({
+        const proxyResponse = await readRequest({
           url: rss2jsonUrl,
           method: "GET",
         });

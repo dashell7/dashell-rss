@@ -78,7 +78,7 @@ export async function fetchAndParse(
   url: string,
   extraHeaders: Record<string, string> = {},
 ): Promise<string> {
-  const html = await robustFetch(url, {
+  const html = await robustFetch(url, { priority: 0,
     headers: { ...DEFAULT_HEADERS, ...extraHeaders },
   });
   if (!html) return "";
@@ -136,7 +136,7 @@ export async function fetchWithProxyFallbackDetailed(
     // 1. Direct fetch
     let directRestricted: boolean;
     try {
-      const directResponse = await robustFetchDetailed(url, {
+      const directResponse = await robustFetchDetailed(url, { priority: 0,
         headers: DEFAULT_HEADERS,
       });
       const directHtml = directResponse.text;
@@ -187,7 +187,7 @@ export async function fetchWithProxyFallbackDetailed(
     const proxyTarget =
       proxyUrl.trim().replace(/\/$/, "") + encodeURIComponent(url);
 
-    const proxyResponse = await robustFetchDetailed(proxyTarget, {
+    const proxyResponse = await robustFetchDetailed(proxyTarget, { priority: 0,
       headers: DEFAULT_HEADERS,
     });
     const proxyHtml = proxyResponse.text;

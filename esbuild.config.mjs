@@ -65,6 +65,7 @@ const context = await esbuild.context({
 	loader: {
 		".json": "json",
 		".wasm": "binary",
+		".jpg": "dataurl",
 		// Curated What's New notes are bundled as plain text; only the text is
 		// embedded, images stay remote.
 		".md": "text"

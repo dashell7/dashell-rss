@@ -510,7 +510,7 @@ describe("global feed operation: refresh-all batch", () => {
     );
   });
 
-  it("marks every feed pending when the batch starts, and processing once its fetch begins", async () => {
+  it("marks admitted feeds processing and the rest pending when the batch starts", async () => {
     // One more feed than the fetch limit (8), so the last one has to wait.
     const feeds = Array.from({ length: 9 }, (_, index) =>
       createFeed(`feed-${index}`),
@@ -522,7 +522,7 @@ describe("global feed operation: refresh-all batch", () => {
 
     expect(
       feeds.map((feed) => plugin.activeRefreshState.get(feed.url)?.status),
-    ).toEqual(Array(9).fill("pending"));
+    ).toEqual([...Array(8).fill("processing"), "pending"]);
 
     await flush();
     expect(

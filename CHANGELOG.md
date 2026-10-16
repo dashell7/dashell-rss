@@ -1,6 +1,14 @@
-## 2.7.4 - 2026-10-07
+## Unreleased
+
+### Features
+
+- Adapted Qiaomu AI RSS 0.29.2 variable-height list windows and Chinese input handling; reading lists retain their article anchor and mount only nearby rows. Article image cache requests wait until images approach the viewport.
+
+- Adapted Qiaomu AI RSS 0.27.4's namespace-safe Atom parsing, shared prioritized requests, bounded recovery, cache-first previews, background image cleanup and reading-workbench actions to Dashell's existing Dashboard, media previews and Reader learning handoff. See the [adaptation record](docs/DASHELL-QIAOMU-RSS-0274.md).
 
 ### Fixes
+
+- Serialized settings saves so rapid changes and subscription deletion cannot race older writes; retained network error diagnostics after retry.
 
 - Fixed Dashell RSS failing to open downloaded articles and media in Dashell Reader and Dashell Player after their plugin IDs changed.
 
