@@ -8,6 +8,8 @@
 
 ### Fixes
 
+- Run the existing test workflow on Dashell's actual default branch as well as the upstream master/dev branches.
+
 - Serialized settings saves so rapid changes and subscription deletion cannot race older writes; retained network error diagnostics after retry.
 
 - Fixed Dashell RSS failing to open downloaded articles and media in Dashell Reader and Dashell Player after their plugin IDs changed.
