@@ -7,6 +7,7 @@ import {
 import * as feedPreviewLoader from "../../../src/modals/feed-manager/feed-preview-loader";
 import { DEFAULT_SETTINGS } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { FeedChoicesError } from "../../../src/services/feed-parser/feed-source";
 
 type MockApp = obsidian.App;
 
@@ -114,6 +115,105 @@ beforeEach(() => {
 });
 
 describe("AddFeedModal", () => {
+  it("requires a choice when a prefilled website title has multiple sources", async () => {
+    const source = { url: "https://example.com/feed", text: "<rss><channel/></rss>" };
+    const onAdd = vi.fn(async () => false);
+    vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockRejectedValue(new FeedChoicesError([
+      { title: "News", description: "", link: "", image: "", latestPubDate: "", hasEntries: false, feedUrl: source.url, source },
+    ], 1));
+    const modal = new AddFeedModal(createMockApp(), [], onAdd, vi.fn(), "", undefined, "https://example.com/", "Website title");
+    modal.open();
+    getButtonByText(modal.contentEl, "Load").click();
+    await flushPromises();
+    getButtonByText(modal.contentEl, "Save").click();
+    expect(onAdd).not.toHaveBeenCalled();
+    getButtonByText(modal.contentEl, "Choose").click();
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ url: source.url, previewSource: source }));
+    modal.close();
+  });
+  it("lets a timed-out preview retry and ignores its eventual result", async () => {
+    vi.useFakeTimers();
+    const load = vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockImplementation(() => new Promise(() => {}));
+    const modal = new AddFeedModal(createMockApp(), [], vi.fn(), vi.fn(), "", undefined, "https://example.com/feed");
+    try {
+      modal.open();
+      getButtonByText(modal.contentEl, "Load").click();
+      await vi.advanceTimersByTimeAsync(30001);
+      expect(getSettingByName(modal.contentEl, "Status").textContent).toContain("timed out");
+      expect(getButtonByText(modal.contentEl, "Load").disabled).toBe(false);
+      getButtonByText(modal.contentEl, "Load").click();
+      expect(load).toHaveBeenCalledTimes(2);
+    } finally { modal.close(); await vi.runOnlyPendingTimersAsync(); vi.useRealTimers(); }
+  });
+
+  it("submits the preview document once and keeps the dialog open when saving fails", async () => {
+    let finish!: (value: boolean) => void;
+    const onAdd = vi.fn(() => new Promise<boolean>(resolve => { finish = resolve; }));
+    const source = { url: "https://example.com/feed", text: "<rss><channel/></rss>" };
+    vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockResolvedValue({ detectedType: "rss", inputUrl: source.url, finalUrl: source.url, isMastodonConversion: false, title: "Feed", hasEntries: false, source });
+    const modal = new AddFeedModal(createMockApp(), [], onAdd, vi.fn(), "", undefined, source.url);
+    modal.open();
+    getButtonByText(modal.contentEl, "Load").click();
+    await flushPromises();
+    getButtonByText(modal.contentEl, "Save").click();
+    getButtonByText(modal.contentEl, "Save").click();
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ previewSource: source }));
+    finish(false);
+    await flushPromises();
+    expect(modal.containerEl.isConnected).toBe(true);
+    expect(getButtonByText(modal.contentEl, "Save").disabled).toBe(false);
+    modal.close();
+  });
+
+  it("ignores an old preview after the address changes", async () => {
+    let finish!: (value: feedPreviewLoader.FeedPreviewLoadResult) => void;
+    vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockImplementation(
+      () => new Promise((resolve) => { finish = resolve; }),
+    );
+    const modal = new AddFeedModal(createMockApp(), [], vi.fn(), vi.fn());
+    modal.open();
+    const input = getTextInputBySettingName(modal.contentEl, "Feed URL");
+    input.value = "https://old.example/feed";
+    input.dispatchEvent(new Event("input"));
+    getButtonByText(modal.contentEl, "Load").click();
+    input.value = "https://new.example/feed";
+    input.dispatchEvent(new Event("input"));
+    finish({ detectedType: "rss", inputUrl: "https://old.example/feed", finalUrl: "https://old.example/feed", isMastodonConversion: false, title: "Old result", hasEntries: true });
+    await flushPromises();
+    expect(input.value).toBe("https://new.example/feed");
+    expect(getTextInputBySettingName(modal.contentEl, "Title").value).toBe("");
+    modal.close();
+  });
+
+  it("does not load while confirming Chinese input or load twice on repeated Enter", async () => {
+    const load = vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockImplementation(() => new Promise(() => {}));
+    const modal = new AddFeedModal(createMockApp(), [], vi.fn(), vi.fn(), "", undefined, "https://example.com/feed");
+    modal.open();
+    const input = getTextInputBySettingName(modal.contentEl, "Feed URL");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", isComposing: true }));
+    expect(load).not.toHaveBeenCalled();
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", repeat: true }));
+    expect(load).toHaveBeenCalledTimes(1);
+    modal.close();
+  });
+
+  it("does not finish a preview after closing the dialog", async () => {
+    let finish!: (value: feedPreviewLoader.FeedPreviewLoadResult) => void;
+    vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    const modal = new AddFeedModal(createMockApp(), [], vi.fn(), vi.fn(), "", undefined, "https://example.com/feed");
+    modal.open();
+    getButtonByText(modal.contentEl, "Load").click();
+    const input = getTextInputBySettingName(modal.contentEl, "Feed URL");
+    modal.close();
+    finish({ detectedType: "rss", inputUrl: "https://example.com/feed", finalUrl: "https://old.example/feed", isMastodonConversion: false, title: "Old result", hasEntries: true });
+    await flushPromises();
+    expect(input.value).toBe("https://example.com/feed");
+  });
+
   it("removes the native close button in the mobile layout", () => {
     Object.defineProperty(window, "innerWidth", {
       value: 500,

@@ -1,4 +1,5 @@
 import type { SourceMetadata } from '../../dashell/model';
+import type { FeedEncoding } from "../../types/types";
 export interface ParsedFeed {
   title: string;
   description?: string;
@@ -51,6 +52,13 @@ export interface ParsedItem {
   };
 }
 
+export interface FeedSourceDocument {
+  url: string;
+  text: string;
+  encoding?: FeedEncoding;
+  headers?: Record<string, string>;
+}
+
 export interface FeedPreviewData {
   title: string;
   description: string;
@@ -59,11 +67,13 @@ export interface FeedPreviewData {
   latestPubDate: string;
   hasEntries: boolean;
   feedUrl: string;
+  source?: FeedSourceDocument;
 }
 
 export interface FeedParseOptions {
   allowEmpty?: boolean;
   signal?: AbortSignal;
+  source?: FeedSourceDocument;
 }
 
 export interface ItunesLookupResponse {

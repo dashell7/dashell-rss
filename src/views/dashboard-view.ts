@@ -10,6 +10,7 @@ import {
   type EventRef,
   setTooltip,
 } from "obsidian";
+import type { FeedSourceDocument } from "../services/feed-parser/types";
 import {
   Feed,
   FeedKeywordRulesSettings,
@@ -2241,8 +2242,9 @@ export class RssDashboardView extends ItemView {
     excludeFromRefresh?: boolean,
     customTags?: string[],
     feedEncoding?: FeedEncoding,
-  ): Promise<void> {
-    await this.plugin.addFeed(
+    previewSource?: FeedSourceDocument,
+  ): Promise<boolean> {
+    const added = await this.plugin.addFeed(
       title,
       url,
       folder,
@@ -2253,9 +2255,10 @@ export class RssDashboardView extends ItemView {
       customTemplate,
       excludeFromRefresh,
       customTags,
-      { feedEncoding },
+      { feedEncoding, previewSource },
     );
     void this.render();
+    return added;
   }
 
   private handleEditFeed(

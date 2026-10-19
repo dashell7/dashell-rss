@@ -13,6 +13,7 @@ import {
 import type { FeedOperationTracker } from "./feed-operation-tracker";
 import { MediaService } from "./media-service";
 import type { PreviewImageCache } from "./preview-image-cache";
+import type { FeedSourceDocument } from "./feed-parser/types";
 
 /** The dashboard view method the service redraws through. main.ts supplies the view. */
 export interface FeedSubscriptionViewLike {
@@ -23,6 +24,7 @@ export interface FeedSubscriptionAddOptions {
   showNotice?: boolean;
   feedEncoding?: FeedEncoding;
   globalOperation?: boolean;
+  previewSource?: FeedSourceDocument;
 }
 
 export interface FeedSubscriptionServiceOptions {
@@ -49,6 +51,7 @@ export class FeedSubscriptionService {
   private readonly feedOperationTracker: FeedOperationTracker;
   private readonly previewImageCache: PreviewImageCache;
   private readonly pendingFeedUrls = new Set<string>();
+  private additions: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly options: FeedSubscriptionServiceOptions) {
     this.feedOperationTracker = options.feedOperationTracker;
@@ -184,17 +187,17 @@ export class FeedSubscriptionService {
           url,
           newFeed,
           operationSignal,
+          options?.previewSource,
         );
-        if (
-          !parsedFeed ||
-          operationSignal?.aborted ||
-          this.feedOperationTracker.isCancelled
-        ) {
+        if (!parsedFeed || !this.canAdd(operationSignal)) {
           return false;
         }
         const feedToStore = this.mergeParsedFeed(newFeed, parsedFeed);
-        await this.storeAddedFeed(feedToStore, title, showNotice);
-        return true;
+        const addition = this.additions.catch(() => undefined).then(() =>
+          this.storeAddedFeed(feedToStore, title, showNotice, operationSignal),
+        );
+        this.additions = addition;
+        return await addition;
       } catch (error) {
         if (showNotice) {
           new Notice(formatFeedParseNoticeMessage(error));
@@ -217,15 +220,21 @@ export class FeedSubscriptionService {
     }
   }
 
+  private canAdd(signal: AbortSignal | null): boolean {
+    return !signal?.aborted && !this.feedOperationTracker.isDisposed && !this.feedOperationTracker.isCancelled;
+  }
+
   /** Race parse against Stop only. A slow parse still waits; there is no extra timeout. */
   private async parseWithAbortRace(
     url: string,
     newFeed: Feed,
     signal: AbortSignal | null,
+    source?: FeedSourceDocument,
   ): Promise<Feed | null> {
     const parseOptions = {
       allowEmpty: true,
       signal: signal ?? undefined,
+      ...(source ? { source } : {}),
     };
     if (!signal) {
       return await this.feedParser.parseFeed(url, newFeed, parseOptions);
@@ -339,13 +348,18 @@ export class FeedSubscriptionService {
     feedToStore: Feed,
     title: string,
     showNotice: boolean,
-  ): Promise<void> {
+    signal: AbortSignal | null,
+  ): Promise<boolean> {
+    const current = () => this.canAdd(signal) &&
+      !this.settings.feeds.some(feed => feed.url === feedToStore.url);
+    if (!current()) return false;
     if (feedToStore.folder) {
       await this.options.ensureFolderExists(feedToStore.folder, {
         saveSettings: false,
         refreshView: false,
       });
     }
+    if (!current()) return false;
 
     // Re-apply tags after ensureFolderExists so folder auto-tags resolve
     // against the current folder tree (parseFeed also tags, but may run
@@ -358,17 +372,30 @@ export class FeedSubscriptionService {
     );
 
     // Only add to settings if parsing succeeded
-    this.settings.feeds.push(feedWithTags);
-    await this.options.saveSettings();
-    this.previewImageCache.warmFeed(feedWithTags);
-
-    const view = await this.options.getActiveDashboardView();
-    if (view) {
-      void view.refresh();
+    const settings = this.settings;
+    settings.feeds.push(feedWithTags);
+    try {
+      await this.options.saveSettings();
+    } catch (error) {
+      settings.feeds = settings.feeds.filter(feed => feed !== feedWithTags);
+      // Order a compensating snapshot after any concurrent save that saw the pending addition.
+      if (settings === this.settings && !this.feedOperationTracker.isDisposed) {
+        try { await this.options.saveSettings(); } catch { /* Preserve the original save failure. */ }
+      }
+      throw error;
+    }
+    if (this.feedOperationTracker.isDisposed) return true;
+    try {
+      this.previewImageCache.warmFeed(feedWithTags);
+      const view = await this.options.getActiveDashboardView();
+      if (view && !this.feedOperationTracker.isDisposed) view.refresh();
+    } catch {
+      console.warn("Feed was saved, but its preview could not refresh.");
     }
     if (showNotice) {
       new Notice(`Feed "${title}" added`);
     }
+    return true;
   }
 
   async addSubfolder(

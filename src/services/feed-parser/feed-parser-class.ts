@@ -358,16 +358,7 @@ export class FeedParser {
       throw new Error("Feed url is required");
     }
 
-    const validators: FeedValidators = { etag: existingFeed?.etag, lastModified: existingFeed?.lastModified };
-    const responseText = await fetchFeedXml(
-      url,
-      this.getCorsProxyEnabled(),
-      options?.signal,
-      existingFeed?.feedEncoding === "windows-1251"
-        ? existingFeed.feedEncoding
-        : undefined,
-      validators,
-    );
+    const { responseText, validators } = await this.loadDocument(url, existingFeed, options);
     if (options?.signal?.aborted) throw new Error("请求已取消。");
     if (validators.status === 304 && existingFeed) {
       existingFeed.lastUpdated = Date.now();
@@ -472,6 +463,18 @@ export class FeedParser {
       this.mediaSettings,
       this.getFolders(),
     );
+  }
+
+  /** Reuse only the document previewed for this exact address and encoding. */
+  private async loadDocument(url: string, existingFeed: Feed | null, options?: FeedParseOptions) {
+    const validators: FeedValidators = { etag: existingFeed?.etag, lastModified: existingFeed?.lastModified };
+    const source = options?.source;
+    if (source?.url === url && (source.encoding ?? "auto") === (existingFeed?.feedEncoding ?? "auto")) {
+      return { responseText: source.text, validators: { status: 200, responseHeaders: source.headers ?? {} } };
+    }
+    const responseText = await fetchFeedXml(url, this.getCorsProxyEnabled(), options?.signal,
+      existingFeed?.feedEncoding === "windows-1251" ? existingFeed.feedEncoding : undefined, validators);
+    return { responseText, validators };
   }
 
   /** The helpers the item pipeline calls, bound so they keep reading this parser. */

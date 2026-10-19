@@ -21,7 +21,8 @@ Qiaomu AI RSS release. The combined derivative is GPL-3.0-only; see LICENSE.
 - Source: https://github.com/joeseesun/qiaomu-ai-rss
 - Reference: ac2c792bfebe4604bc30d2e3ae3af6387c918c2b
 - Additional references: 0.27.4 (7c1077c314d2c42c4d915149f2c235335a66fccf),
-  and 0.29.2 (0133ff24e9bca914de1d3f47e63e94220baf029a).
+  0.29.2 (0133ff24e9bca914de1d3f47e63e94220baf029a),
+  and 0.30.0 (1af82c0d1c7062b55701e3e49b5d5dd3c8832c37).
 - Copyright (c) 向阳乔木
 - License: GPL-3.0-only, preserved in LICENSE.
 - Adapted sources: src/content.ts (safe HTML/Markdown rendering),
@@ -35,6 +36,12 @@ Qiaomu AI RSS release. The combined derivative is GPL-3.0-only; see LICENSE.
 - Later adaptations: namespace-safe Atom fields, request sharing and recovery,
   cache-first reading, variable-height bounded lists and Chinese input handling.
   These use Dashell's existing storage, transport and reading workbench.
+- 0.30.0 adaptations: content-based source validation, declared HTML head feed
+  discovery, source selection and cancellation, preview-document reuse, and
+  subscription commit safeguards. Local modules: feed-parser/feed-source.ts,
+  feed-preview.ts, feed-parser-class.ts, feed-subscription-service.ts and the
+  existing feed/OPML modals. Based on feed-resolver.ts, source-input.ts and
+  subscriptions.ts; Dashell's storage and transport remain the owners.
 - Qiaomu's proprietary content service, accounts and curated feeds are not
   bundled or implied by this adaptation. Source-provided translation and
   rewrite variants are not an on-demand AI service.

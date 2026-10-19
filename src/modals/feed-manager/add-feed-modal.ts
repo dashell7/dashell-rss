@@ -29,6 +29,10 @@ import {
 } from "./supported-format-badges";
 import { decorateFolderSelectorInput } from "./folder-selector-field";
 import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
+import type { FeedSourceDocument } from "../../services/feed-parser/types";
+import { FeedChoicesError, OpmlSourceError } from "../../services/feed-parser/feed-source";
+import { ImportOpmlModal } from "../import-opml-modal";
+import type { FeedPreviewLoadResult } from "./feed-preview-loader";
 
 const EMPTY_FEED_VALIDATION_WARNING =
   "Feed validation passed, however no content detected.";
@@ -46,6 +50,7 @@ export interface AddFeedRequest {
   excludeFromRefresh?: boolean;
   customTags?: string[];
   feedEncoding?: FeedEncoding;
+  previewSource?: FeedSourceDocument;
 }
 
 export class AddFeedModal extends Modal {
@@ -71,6 +76,13 @@ export class AddFeedModal extends Modal {
   private excludeFromRefresh: boolean = false;
   private customTemplate: string = "";
   private feedKeywordRules: FeedKeywordRulesSettings;
+  private previewSource?: FeedSourceDocument;
+  private previewGeneration = 0;
+  private previewAbort?: AbortController;
+  private closed = false;
+  private saving = false;
+  private sourceNeedsChoice = false;
+  private sourceChoices?: HTMLDivElement;
 
   // --- DOM References ---
   private titleInput!: HTMLInputElement;
@@ -115,6 +127,7 @@ export class AddFeedModal extends Modal {
   }
 
   onOpen() {
+    this.closed = false;
     this.setupModalContainer();
     this.renderHeader();
     this.renderUrlAndSourceSection();
@@ -157,6 +170,7 @@ export class AddFeedModal extends Modal {
    * Handles input parsing, live loading, and format detection
    * ============================================ */
   private async handleLoadFeed() {
+    if (this.closed || this.previewAbort || this.saving) return;
     // Validate that URL is not empty
     if (!this.url || this.url.trim() === "") {
       this.status = "❌ Please enter a feed URL";
@@ -183,13 +197,67 @@ export class AddFeedModal extends Modal {
       this.statusDiv.addClass("status-loading");
     }
 
+    const generation = ++this.previewGeneration;
+    const controller = new AbortController();
+    this.previewAbort = controller;
+    this.previewSource = undefined;
+    this.sourceChoices?.empty();
+    let timedOut = false;
+    const timer = window.setTimeout(() => { timedOut = true; controller.abort(); }, 30000);
+    let onAbort = () => {};
+    const cancelled = new Promise<never>((_resolve, reject) => {
+      onAbort = () => reject(new Error(timedOut ? "Loading timed out. Please try again." : "Preview cancelled."));
+      controller.signal.addEventListener("abort", onAbort, { once: true });
+    });
+    const current = () => !this.closed && generation === this.previewGeneration;
     try {
-      const preview = await resolveAndLoadPreview(this.url, {
+      const preview = await Promise.race([resolveAndLoadPreview(this.url, {
         corsProxyEnabled: this.plugin?.settings?.corsProxyEnabled,
         corsProxyUrl: this.plugin?.settings?.corsProxyUrl,
         feedEncoding: this.feedEncoding,
-      });
+        signal: controller.signal,
+      }), cancelled]);
+      if (!current()) return;
+      this.applyLoadedPreview(preview);
+    } catch (e) {
+      if (!current()) return;
+      if (e instanceof OpmlSourceError && this.plugin) {
+        const plugin = this.plugin;
+        this.close();
+        new ImportOpmlModal(this.app, plugin, this.onSave, e.content).open();
+        return;
+      }
+      if (e instanceof FeedChoicesError) {
+        this.sourceNeedsChoice = true;
+        this.renderSourceChoices(e);
+        this.statusDiv?.setText("Choose a feed to add.");
+        this.statusDiv?.removeClass("status-loading", "status-error", "status-ok");
+        this.statusDiv?.addClass("rss-dashboard-status-warning");
+        return;
+      }
+      const errorMsg = e instanceof Error ? e.message : "Unable to load this source.";
+      this.status = `Error: ${errorMsg}`;
+      this.latestEntry = "-";
+      if (this.latestEntryDiv) this.latestEntryDiv.textContent = this.latestEntry;
+      if (this.statusDiv) {
+        this.statusDiv.textContent = errorMsg;
+        this.statusDiv.removeClass("status-loading", "status-ok", "rss-dashboard-status-warning");
+        this.statusDiv.addClass("status-error");
+      }
+    } finally {
+      window.clearTimeout(timer);
+      controller.signal.removeEventListener("abort", onAbort);
+      if (current()) {
+        this.previewAbort = undefined;
+        this.loadBtn.removeClass("loading");
+        this.loadBtn.disabled = false;
+      }
+    }
+  }
 
+  private applyLoadedPreview(preview: FeedPreviewLoadResult) {
+      this.sourceNeedsChoice = false;
+      this.previewSource = preview.source;
       this.url = preview.finalUrl;
       if (this.urlInput) this.urlInput.value = preview.finalUrl;
 
@@ -239,34 +307,44 @@ export class AddFeedModal extends Modal {
         this.folder = nextFolder;
         this.folderInput.value = nextFolder;
       }
-    } catch (e) {
-      const errorMsg = e instanceof Error ? e.message : String(e);
-      this.status = `Error: ${errorMsg}`;
-      this.latestEntry = "-";
-      if (this.latestEntryDiv) {
-        this.latestEntryDiv.textContent = this.latestEntry;
-      }
-      console.error("Feed load error:", e);
-      // Error state
-      if (this.statusDiv) {
-        this.statusDiv.textContent = `\u274C ${errorMsg}`;
-        this.statusDiv.removeClass("status-loading");
-        this.statusDiv.removeClass("status-ok");
-        this.statusDiv.removeClass("rss-dashboard-status-warning");
-        this.statusDiv.addClass("status-error");
-      }
-    } finally {
-      // Reset loading state
-      this.loadBtn.removeClass("loading");
-      this.loadBtn.disabled = false;
+  }
+
+  private invalidatePreview() {
+    this.previewGeneration++;
+    this.previewAbort?.abort();
+    this.previewAbort = undefined;
+    this.previewSource = undefined;
+    this.sourceNeedsChoice = false;
+    this.sourceChoices?.empty();
+    this.urlInput?.removeClass("loaded");
+    this.loadBtn?.removeClass("loading");
+    if (this.loadBtn) this.loadBtn.disabled = false;
+    this.statusDiv?.setText("");
+    this.statusDiv?.removeClass("status-loading", "status-error", "status-ok", "rss-dashboard-status-warning");
+    this.clearActiveBadge?.();
+    this.latestEntryDiv?.setText("-");
+  }
+
+  private renderSourceChoices(result: FeedChoicesError) {
+    const container = this.sourceChoices;
+    if (!container) return;
+    container.empty();
+    for (const feed of result.feeds) {
+      new Setting(container).setName(feed.title || "Untitled feed").setDesc(feed.feedUrl).addButton(button => {
+        button.setButtonText("Choose").onClick(() => {
+          this.invalidatePreview();
+          this.applyLoadedPreview({ detectedType: "rss", inputUrl: feed.feedUrl, finalUrl: feed.feedUrl, isMastodonConversion: false, ...feed });
+        });
+      });
     }
+    if (result.failed) container.createDiv({ text: "Some feeds could not be checked. You can choose one above or load again." });
   }
 
   private renderUrlAndSourceSection() {
     const urlSetting = new Setting(this.contentEl)
       .setName("Feed URL")
       .addText((text) => {
-        text.onChange((v) => (this.url = v));
+        text.onChange((v) => { this.url = v; this.invalidatePreview(); });
         text.setValue(this.url);
         this.urlInput = text.inputEl;
         this.urlInput.autocomplete = "off";
@@ -275,6 +353,7 @@ export class AddFeedModal extends Modal {
         this.urlInput.addClass("feed-url-input");
         this.urlInput.addEventListener("focus", () => this.urlInput.select());
         const handleEnter = (e: KeyboardEvent) => {
+          if (e.isComposing || e.key === "Process") return;
           if (e.key === "Enter") {
             e.preventDefault();
             e.stopImmediatePropagation();
@@ -300,6 +379,7 @@ export class AddFeedModal extends Modal {
 
     urlSetting.settingEl.addClass("rss-feed-form-row");
     urlSetting.settingEl.addClass("rss-feed-form-row-url");
+    this.sourceChoices = this.contentEl.createDiv({ cls: "rss-feed-source-choices" });
 
     const sourceSetting = new Setting(this.contentEl).setName("Feed source");
     sourceSetting.settingEl.addClass("rss-feed-form-row");
@@ -398,6 +478,7 @@ export class AddFeedModal extends Modal {
           .onChange((value) => {
             if (value === "auto" || value === "windows-1251") {
               this.feedEncoding = value;
+              this.invalidatePreview();
             }
           });
       });
@@ -685,6 +766,11 @@ export class AddFeedModal extends Modal {
     });
 
     saveBtn.onclick = () => {
+      if (this.saving || this.previewAbort || this.closed) return;
+      if (this.sourceNeedsChoice) {
+        new Notice("Choose a feed before saving.");
+        return;
+      }
       if (!this.url) {
         new Notice("Feed URL cannot be empty");
         return;
@@ -696,10 +782,9 @@ export class AddFeedModal extends Modal {
       }
 
       const finalFolder = this.folderInput?.value || this.folder;
+      this.saving = true;
+      saveBtn.disabled = true;
       void (async () => {
-        if (this.plugin && finalFolder) {
-          await this.plugin.ensureFolderExists(finalFolder);
-        }
         const added = await this.onAdd({
           title: this.title,
           url: this.url,
@@ -715,11 +800,14 @@ export class AddFeedModal extends Modal {
             this.feedEncoding === "windows-1251"
               ? this.feedEncoding
               : undefined,
+          previewSource: this.previewSource,
         }).catch(() => {
           return false;
         });
 
-        if (added !== false) {
+        this.saving = false;
+        saveBtn.disabled = false;
+        if (added !== false && !this.closed) {
           this.onSave();
           this.close();
         }
@@ -729,6 +817,8 @@ export class AddFeedModal extends Modal {
   }
 
   onClose() {
+    this.closed = true;
+    this.invalidatePreview();
     this.contentEl.empty();
   }
 }

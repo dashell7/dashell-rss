@@ -52,6 +52,7 @@ export class ImportOpmlModal extends Modal {
     app: App,
     plugin: RssDashboardPlugin,
     onImportStarted?: () => void,
+    private readonly initialContent?: string,
   ) {
     super(app);
     this.plugin = plugin;
@@ -133,6 +134,9 @@ export class ImportOpmlModal extends Modal {
       buttonContainer,
     );
     this.createModeSelector(this.modeSelectorContainer);
+    if (this.initialContent !== undefined) {
+      void this.handleFileSelection(new File([this.initialContent], "subscriptions.opml", { type: "text/xml" }));
+    }
   }
 
   private resetFileState(file: File): void {

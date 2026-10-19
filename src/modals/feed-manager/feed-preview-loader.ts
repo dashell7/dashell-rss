@@ -3,6 +3,7 @@ import { MastodonService } from "../../services/mastodon-service";
 import { loadFeedForPreview, resolvePodcastPlatformUrl } from "../../services/feed-parser";
 import { detectPodcastPlatform } from "../../utils/podcast-platforms";
 import type { FeedEncoding } from "../../types/types";
+import type { FeedSourceDocument } from "../../services/feed-parser/types";
 
 export type FeedPreviewType = "rss" | "podcast" | "youtube";
 
@@ -10,6 +11,7 @@ export interface FeedPreviewLoaderOptions {
   corsProxyEnabled?: boolean;
   corsProxyUrl?: string;
   feedEncoding?: FeedEncoding;
+  signal?: AbortSignal;
 }
 
 export interface FeedPreviewLoadResult {
@@ -20,6 +22,7 @@ export interface FeedPreviewLoadResult {
   title: string;
   latestPubDate?: string;
   hasEntries: boolean;
+  source?: FeedSourceDocument;
 }
 
 export interface MediaFolderDefaults {
@@ -174,18 +177,26 @@ export async function resolveAndLoadPreview(
     }
   }
 
-  const feedData =
-    options?.feedEncoding === "windows-1251"
-      ? await loadFeedForPreview(finalUrl, options.feedEncoding)
-      : await loadFeedForPreview(finalUrl);
+  const feedData = await loadPreview(finalUrl, options);
 
   return {
     detectedType,
     inputUrl,
-    finalUrl,
+    finalUrl: feedData.feedUrl || finalUrl,
     isMastodonConversion,
     title: feedData.title,
     latestPubDate: feedData.latestPubDate,
     hasEntries: feedData.hasEntries,
+    source: feedData.source,
   };
+}
+
+function loadPreview(finalUrl: string, options?: FeedPreviewLoaderOptions) {
+  return (
+    options?.signal
+      ? loadFeedForPreview(finalUrl, options.feedEncoding, options.signal)
+      : options?.feedEncoding === "windows-1251"
+      ? loadFeedForPreview(finalUrl, options.feedEncoding)
+      : loadFeedForPreview(finalUrl)
+  );
 }

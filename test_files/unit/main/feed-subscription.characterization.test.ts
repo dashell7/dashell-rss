@@ -611,7 +611,7 @@ describe("feed subscription: addFeed failures", () => {
     expect(notices(harness)).toEqual([]);
   });
 
-  it("reports a failing save as a parse failure and leaves the feed unsaved in memory", async () => {
+  it("reports a failing save and removes the pending addition from memory", async () => {
     const harness = createHarness();
     harness.save.mockImplementationOnce(async () => {
       harness.events.push("save");
@@ -620,10 +620,10 @@ describe("feed subscription: addFeed failures", () => {
 
     const added = await addFeed(harness);
 
-    // BUG: pinned, see #552
+    // The legacy error notice is retained; the failed addition can now be retried.
     expect(added).toBe(false);
     expect(notices(harness)).toEqual(["Error parsing feed: disk full"]);
-    expect(harness.plugin.settings.feeds).toHaveLength(1);
+    expect(harness.plugin.settings.feeds).toHaveLength(0);
   });
 
   it("reports a failure before the parse as an add error", async () => {

@@ -18,6 +18,7 @@ import {
   FeedShardHealth,
 } from "../types/types";
 import { collectFolderPaths } from "../utils/folder-paths";
+import type { FeedSourceDocument } from "../services/feed-parser/types";
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
 import { FolderAutoTagModal } from "../modals/feed-manager/folder-auto-tag-modal";
 import {
@@ -114,7 +115,8 @@ export interface SidebarCallbacks {
     excludeFromRefresh?: boolean,
     customTags?: string[],
     feedEncoding?: FeedEncoding,
-  ) => Promise<void>;
+    previewSource?: FeedSourceDocument,
+  ) => Promise<boolean | void>;
   onEditFeed: (feed: Feed, title: string, url: string, folder: string) => void;
   onDeleteFeed: (feed: Feed) => void;
   onDeleteFolder: (folder: string) => void;
@@ -3141,6 +3143,7 @@ export class Sidebar {
           request.excludeFromRefresh,
           request.customTags,
           request.feedEncoding,
+          request.previewSource,
         ),
       () => this.render(),
       defaultFolder,

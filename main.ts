@@ -25,7 +25,6 @@ import {
   FeedIngestionCandidate,
   FeedIngestionOptions,
   FeedIngestionResult,
-  FeedEncoding,
   FeedShardHealth,
 } from "./src/types/types";
 import { RssDashboardSettingTab } from "./src/settings/settings-tab";
@@ -75,7 +74,7 @@ import {
   FeedRefreshRunner,
   type FeedRefreshIntent,
 } from "./src/services/feed-refresh-runner";
-import { FeedSubscriptionService } from "./src/services/feed-subscription-service";
+import { FeedSubscriptionService, type FeedSubscriptionAddOptions } from "./src/services/feed-subscription-service";
 import { SettingsImportApplier } from "./src/services/settings-import-applier";
 import { SettingsStore } from "./src/services/settings-store";
 import {
@@ -1159,7 +1158,7 @@ export default class RssDashboardPlugin extends Plugin {
           addRequest.customTemplate,
           addRequest.excludeFromRefresh,
           addRequest.customTags,
-          { feedEncoding: addRequest.feedEncoding },
+          { feedEncoding: addRequest.feedEncoding, previewSource: addRequest.previewSource },
         ),
       () => {
         void this.refreshDashboardViews();
@@ -2035,11 +2034,7 @@ export default class RssDashboardPlugin extends Plugin {
     customTemplate?: string,
     excludeFromRefresh?: boolean,
     customTags?: string[],
-    options?: {
-      showNotice?: boolean;
-      feedEncoding?: FeedEncoding;
-      globalOperation?: boolean;
-    },
+    options?: FeedSubscriptionAddOptions,
   ): Promise<boolean> {
     return this.feedSubscriptionService.addFeed(
       title,

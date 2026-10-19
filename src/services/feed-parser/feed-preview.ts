@@ -1,9 +1,9 @@
-import { requestUrl } from "obsidian";
-import { robustFetch } from "../../utils/platform-utils.js";
+import { robustFetchDetailed } from "../../utils/platform-utils.js";
 import type { FeedEncoding } from "../../types/types.js";
 import { isValidFeed } from "./feed-validation.js";
 import { CustomXMLParser } from "./xml-parser/custom-xml-parser.js";
 import type { FeedPreviewData, Rss2JsonResponse } from "./types.js";
+import { declaredFeedUrls, FeedChoicesError, OpmlSourceError, sourceDocumentKind, SourceDocumentError, sourceHttpUrl } from "./feed-source";
 
 export type { FeedPreviewData } from "./types.js";
 
@@ -28,11 +28,18 @@ export function parseFeedPreviewFromXmlText(
 export async function loadFeedForPreview(
   feedUrl: string,
   feedEncoding?: FeedEncoding,
+  signal?: AbortSignal,
 ): Promise<FeedPreviewData> {
+  feedUrl = sourceHttpUrl(feedUrl);
+  const current = () => {
+    if (signal?.aborted) throw new SourceDocumentError("Preview cancelled. Try loading again.");
+  };
+  current();
   // Try direct request first
   try {
-    const responseText = await robustFetch(feedUrl, {
+    const response = await robustFetchDetailed(feedUrl, {
       method: "GET",
+      priority: 0,
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -42,14 +49,43 @@ export async function loadFeedForPreview(
       encodingOverride:
         feedEncoding === "windows-1251" ? feedEncoding : undefined,
     });
-
-    const preview = parseFeedPreviewResponse(responseText, feedUrl);
-    if (preview) return preview;
-  } catch {
+    current();
+    const kind = sourceDocumentKind(response.text);
+    if (kind === "opml") throw new OpmlSourceError(response.text);
+    if (kind === "html") return await discoverPreview(response.text, feedUrl, feedEncoding, signal);
+    const preview = parseFeedPreviewResponse(response.text, feedUrl);
+    if (preview) return { ...preview, source: { url: feedUrl, text: response.text, encoding: feedEncoding, headers: response.headers } };
+    throw new SourceDocumentError("No readable feed found at this address.");
+  } catch (error) {
+    current();
+    if (error instanceof SourceDocumentError) throw error;
     // Fall through to rss2json
   }
+  const preview = await loadFeedPreviewFromRss2Json(feedUrl);
+  current();
+  return preview;
+}
 
-  return loadFeedPreviewFromRss2Json(feedUrl);
+async function discoverPreview(text: string, url: string, encoding?: FeedEncoding, signal?: AbortSignal): Promise<FeedPreviewData> {
+  const urls = declaredFeedUrls(text, url);
+  if (!urls.length) throw new SourceDocumentError("No declared feed found on this page.");
+  const feeds: FeedPreviewData[] = [];
+  let failed = 0;
+  // Sequential verification shares the existing transport budget and stops after cancellation.
+  for (const candidate of urls) {
+    if (signal?.aborted) throw new SourceDocumentError("Preview cancelled.");
+    try {
+      const response = await robustFetchDetailed(candidate, { priority: 0, encodingOverride: encoding });
+      if (sourceDocumentKind(response.text) !== "feed") { failed++; continue; }
+      const preview = parseFeedPreviewResponse(response.text, candidate);
+      if (preview) feeds.push({ ...preview, source: { url: candidate, text: response.text, encoding, headers: response.headers } });
+      else failed++;
+    } catch { failed++; }
+  }
+  if (signal?.aborted) throw new SourceDocumentError("Preview cancelled.");
+  if (feeds.length === 1 && failed === 0) return feeds[0]!;
+  if (feeds.length) throw new FeedChoicesError(feeds, failed);
+  throw new SourceDocumentError("No readable feed found on this page.");
 }
 
 function parseFeedPreviewResponse(
@@ -58,9 +94,8 @@ function parseFeedPreviewResponse(
 ): FeedPreviewData | null {
   if (!responseText || !isValidFeed(responseText)) return null;
 
-  if (responseText.trimStart().startsWith("{")) {
-    const parsed = new CustomXMLParser().parseString(responseText);
-    return {
+  const parsed = new CustomXMLParser().parseString(responseText);
+  return {
       title: parsed.title,
       description: parsed.description || "",
       link: parsed.link || "",
@@ -68,12 +103,7 @@ function parseFeedPreviewResponse(
       latestPubDate: parsed.items[0]?.pubDate || "",
       hasEntries: parsed.items.length > 0,
       feedUrl,
-    };
-  }
-
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(responseText, "text/xml");
-  return parseFeedDoc(doc, feedUrl);
+  };
 }
 
 async function loadFeedPreviewFromRss2Json(
@@ -83,9 +113,9 @@ async function loadFeedPreviewFromRss2Json(
   const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`;
 
   try {
-    const response = await requestUrl({
-      url: rss2jsonUrl,
+    const response = await robustFetchDetailed(rss2jsonUrl, {
       method: "GET",
+      priority: 0,
     });
 
     const data = JSON.parse(response.text) as Rss2JsonResponse;
@@ -102,11 +132,8 @@ async function loadFeedPreviewFromRss2Json(
       hasEntries: (data.items?.length || 0) > 0,
       feedUrl,
     };
-  } catch (e) {
-    console.error("[RSS Dashboard] rss2json failed:", e);
-    throw new Error(
-      `Failed to load feed: ${e instanceof Error ? e.message : String(e)}`,
-    );
+  } catch {
+    throw new Error("Unable to load this feed. Please try again.");
   }
 }
 

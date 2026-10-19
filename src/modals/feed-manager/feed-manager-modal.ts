@@ -68,7 +68,7 @@ export class FeedManagerModal extends Modal {
             request.customTemplate,
             request.excludeFromRefresh,
             request.customTags,
-            { feedEncoding: request.feedEncoding },
+            { feedEncoding: request.feedEncoding, previewSource: request.previewSource },
           ),
         () => this.onOpen(),
         "",
