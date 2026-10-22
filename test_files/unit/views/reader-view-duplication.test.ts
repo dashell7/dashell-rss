@@ -195,6 +195,30 @@ describe("ReaderView Image Duplication", () => {
     expect(markdown).not.toContain(formulaUrl);
   });
 
+  it("saves previewed WeChat articles with the direct original link and leaves cached HTML intact", () => {
+    const original = "https://mp.weixin.qq.com/s?__biz=abc%3D%3D&mid=123&sn=def#read";
+    const proxy = `https://wechat2rss.bestblogs.dev/link-proxy/?u=${encodeURIComponent(original)}&r=1`;
+    const cached = `<p>Cached article.</p><a href="${proxy.replace(/&/g, "&amp;")}"><strong>跳转到微信打开</strong></a>`;
+    const item: FeedItem = {
+      title: "Cached WeChat article",
+      link: "https://example.com/wechat",
+      description: cached,
+      content: cached,
+      pubDate: "",
+      guid: "saved-wechat-original",
+      feedTitle: "WeChat feed",
+      feedUrl: "https://example.com/rss",
+      coverImage: "",
+    };
+
+    const markdown = getHarness(readerView).buildReaderSaveMarkdown(item);
+
+    expect(markdown).toContain(`[查看公众号原文](${original})`);
+    expect(markdown).not.toContain("link-proxy");
+    expect(item.content).toBe(cached);
+    expect(item.description).toBe(cached);
+  });
+
   it("serializes WordPress formula images with Obsidian math delimiters", () => {
     const formulaUrl =
       "https://s0.wp.com/latex.php?latex=%7Ba_1%7D&bg=ffffff";

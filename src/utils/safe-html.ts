@@ -2,6 +2,7 @@ import {
   normalizeSubstackImageSrcset,
   normalizeSubstackImageUrl,
 } from "./substack-image-url";
+import { normalizeWechatArticleLinks } from "./wechat-article-links";
 
 const BLOCKED_TAGS = new Set([
   "script",
@@ -376,4 +377,5 @@ export function sanitizeAndAppendHtml(
   Array.from(doc.body.childNodes).forEach((node) =>
     sanitizeAndAppendNode(ownerDoc, container, node, mode),
   );
+  normalizeWechatArticleLinks(container);
 }

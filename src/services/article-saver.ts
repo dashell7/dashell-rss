@@ -24,6 +24,7 @@ import {
 import { firstNonFormulaImageUrl } from "../utils/image-url-utils";
 import { escapeYamlDoubleQuoted } from "../utils/yaml-escape";
 import { ensureVaultFolder } from "../utils/vault-files";
+import { normalizeWechatArticleLinks } from "../utils/wechat-article-links";
 
 const MAX_FILENAME_LENGTH = 100;
 
@@ -69,6 +70,7 @@ export class ArticleSaver {
           "div[class*='ad-'], div[id*='ad-'], div[class*='ads-'], div[id*='ads-']",
       );
       elementsToRemove.forEach((el) => el.remove());
+      normalizeWechatArticleLinks(doc.body);
 
       doc.querySelectorAll("img").forEach((img) => {
         const src = img.getAttribute("src");
@@ -146,6 +148,7 @@ export class ArticleSaver {
     try {
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, "text/html");
+      normalizeWechatArticleLinks(doc.body);
 
       doc.querySelectorAll("a").forEach((link) => {
         const href = link.getAttribute("href") || "";

@@ -4,6 +4,7 @@ import createDOMPurify from "dompurify";
 import { marked } from "marked";
 import { safeUrl } from "./safety";
 import type { Mode } from "./model";
+import { normalizeWechatArticleLinks } from "../utils/wechat-article-links";
 
 const tags = [
   "p",
@@ -74,5 +75,6 @@ export function articleFragment(
       element.setAttribute("referrerpolicy", "no-referrer");
     }
   }
+  normalizeWechatArticleLinks(fragment);
   return fragment;
 }

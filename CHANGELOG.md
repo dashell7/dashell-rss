@@ -10,6 +10,8 @@
 
 ### Fixes
 
+- Adapted Qiaomu AI RSS 0.30.1 WeChat original-article links: cached proxy links open the validated HTTPS original in previews and ordinary exports, retaining the article query and cached source. Learning exports retain their existing plain-text link behavior. Prevented image-URL recovery from decoding unrelated query/fragment URLs. The 0.30.2 Qiaomu-specific podcast catalogue is outside Dashell's service scope; see the [adaptation record](docs/DASHELL-QIAOMU-RSS-0302.md).
+
 - Prevented cancelled or timed-out previews from overwriting a new address, repeated Enter/Save from submitting twice, and failed subscription saves from leaving an uncommitted duplicate. Chinese input confirmation no longer triggers loading.
 
 - Run the existing test workflow on Dashell's actual default branch as well as the upstream master/dev branches.

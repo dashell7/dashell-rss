@@ -19,10 +19,14 @@ function decodeSubstackImageFetchUrl(url: string): string | null {
 
 function decodeEncodedTrailingUrl(url: string): string | null {
   const trimmed = url.trim();
-  const match = trimmed.match(/https?%3A%2F%2F[^\s"')<>]+/i);
+  const match = /https?%3A%2F%2F[^\s"')<>]+/i.exec(trimmed);
   if (!match) {
     return null;
   }
+  // Image recovery decodes a trailing path, never another site's query/fragment.
+  // Otherwise article proxies lose their origin and append outer parameters.
+  const boundary = trimmed.search(/[?#]/);
+  if (boundary >= 0 && match.index >= boundary) return null;
 
   try {
     const decoded = decodeURIComponent(match[0]);

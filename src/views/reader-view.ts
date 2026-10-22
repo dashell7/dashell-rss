@@ -88,6 +88,7 @@ import {
   normalizeSubstackImageUrl,
   normalizeSubstackImageUrlsInDocument,
 } from "../utils/substack-image-url";
+import { normalizeWechatArticleLinks } from "../utils/wechat-article-links";
 import { firstNonFormulaImageUrl } from "../utils/image-url-utils";
 import { ReaderLightbox } from "../components/reader-lightbox";
 import {
@@ -710,6 +711,7 @@ export class ReaderView extends ItemView {
     try {
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, "text/html");
+      normalizeWechatArticleLinks(doc.body);
 
       doc.querySelectorAll("a").forEach((link) => {
         const href = normalizeSubstackImageUrl(link.getAttribute("href") || "");
