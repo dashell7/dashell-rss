@@ -35,6 +35,9 @@
   "engines": {
     "node": ">=20.19.0"
   },
+  "overrides": {
+    "vite": "8.3.3"
+  },
   "devDependencies": {
     "@types/jsdom": "^28.0.3",
     "@types/node": "^24.13.6",

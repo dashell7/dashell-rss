@@ -10,6 +10,8 @@
 
 ### Fixes
 
+- Updated the development-only Vite lock to patched 8.3.3 after the CI dependency audit reported its launch-editor advisory; production dependencies remain unchanged.
+
 - Adapted Qiaomu AI RSS 0.30.1 WeChat original-article links: cached proxy links open the validated HTTPS original in previews and ordinary exports, retaining the article query and cached source. Learning exports retain their existing plain-text link behavior. Prevented image-URL recovery from decoding unrelated query/fragment URLs. The 0.30.2 Qiaomu-specific podcast catalogue is outside Dashell's service scope; see the [adaptation record](docs/DASHELL-QIAOMU-RSS-0302.md).
 
 - Prevented cancelled or timed-out previews from overwriting a new address, repeated Enter/Save from submitting twice, and failed subscription saves from leaving an uncommitted duplicate. Chinese input confirmation no longer triggers loading.

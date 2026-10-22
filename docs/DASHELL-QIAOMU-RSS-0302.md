@@ -36,8 +36,24 @@ before the WeChat validator saw the proxy origin, appending outer parameters.
 Limit that fallback to encoded trailing paths, leaving query/fragment URLs
 alone; existing Substack image-path recovery continues to pass its tests.
 
-No main imports, second cache, transport, speech player, settings or dependencies
-are introduced. Existing module ownership and storage remain unchanged.
+No main imports, second cache, transport, speech player, settings or production
+dependencies are introduced. Existing module ownership and storage remain unchanged.
+
+## CI dependency audit follow-up
+
+The first pushed candidate stopped at the existing all-dependency audit before
+tests: development-only Vite 8.3.0 matched the high-severity
+[launch-editor advisory](https://github.com/advisories/GHSA-587h-7wmj-h5pm).
+Production-only audit reported zero vulnerabilities. Pin the compatible patched
+Vite 8.3.3 with a package override and refresh its required Rolldown development
+subtree. Do not lower the audit threshold or change production dependencies.
+The worktree uses an independent dependency install for the updated lock, so
+the other VideoCaptioner checkout's dependency tree is preserved.
+
+Both production-only and all-dependency audits pass their existing high-severity
+gates after this update. The latter still reports six moderate development
+advisories in Vitest/Obsidian tooling; passing this gate does not mean a completely
+clean advisory report. No forced broad upgrade or lint downgrade is applied.
 
 ## Verification and limits
 
