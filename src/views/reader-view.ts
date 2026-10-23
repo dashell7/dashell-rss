@@ -959,6 +959,7 @@ export class ReaderView extends ItemView {
       e.stopPropagation();
       this.toggleReaderFormatDropdown(readerFormatButton);
     });
+    actions.prepend(readerFormatButton);
 
     // Open in browser button
     const browserButton = actions.createEl('button', {

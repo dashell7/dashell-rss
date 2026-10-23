@@ -1,0 +1,35 @@
+/* Article outline adapted from Qiaomu AI RSS 0.31.0, GPL-3.0-only. */
+.rss-dashell-reader .rss-article-outline { position: static; flex: none; }
+.rss-dashell-reader .rss-reader-header:has(.rss-article-outline) { position: relative; overflow: visible; }
+.rss-dashell-reader .rss-article-outline > summary { list-style: none; }
+.rss-dashell-reader .rss-article-outline > summary::-webkit-details-marker { display: none; }
+.rss-dashell-reader .rss-article-outline[open] > summary { color: var(--text-normal); background: var(--background-modifier-hover); }
+.rss-dashell-reader .rss-outline-panel {
+  position: absolute; top: calc(100% + 4px); right: 8px; z-index: 30;
+  display: flex; flex-direction: column; gap: 8px;
+  width: min(320px, calc(100% - 16px)); max-height: min(60vh, 480px);
+  padding: 12px 8px; border: 1px solid var(--background-modifier-border);
+  border-radius: 8px; background: var(--background-primary); color: var(--text-normal); box-shadow: var(--shadow-s);
+}
+.rss-dashell-reader .rss-outline-title { padding: 0 8px 4px; font-size: var(--font-ui-small); font-weight: 600; }
+.rss-dashell-reader .rss-outline-body { min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.rss-dashell-reader .rss-outline-list { list-style: none; padding: 0; margin: 0; }
+.rss-dashell-reader .rss-outline-list > li { padding: 0; margin: 0; }
+.rss-dashell-reader .rss-outline-row {
+  display: block; width: 100%; height: auto; min-height: 34px;
+  padding: 7px 8px 7px calc(8px + var(--rss-outline-depth, 0) * 12px);
+  border: 0; border-radius: 4px; box-shadow: none; background: transparent;
+  color: var(--text-muted); text-align: start; white-space: normal; overflow-wrap: anywhere;
+  font-family: var(--font-interface); font-size: var(--font-ui-small); font-weight: 400; line-height: 1.6;
+}
+.rss-dashell-reader .rss-outline-row.is-active { color: var(--text-normal); font-weight: 600; background: var(--background-secondary); }
+.rss-dashell-reader .rss-outline-row:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.rss-dashell-reader .rss-outline-row:focus-visible,
+.rss-dashell-reader .rss-article-outline > summary:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
+.rss-dashell-reader .rss-outline-empty { padding: 12px 8px; color: var(--text-muted); font-size: var(--font-ui-small); }
+.is-mobile .rss-dashell-reader .rss-outline-row { min-height: 44px; padding-block: 11px; }
+.is-mobile .rss-dashell-reader .rss-article-outline > summary { width: 44px; height: 44px; }
+.rss-workbench .rss-dashell-reader-toolbar:has(.rss-article-outline) { height: auto; flex-wrap: wrap; }
+@container (max-width: 440px) {
+  .rss-workbench .rss-dashell-reader-toolbar:has(.rss-article-outline) .rss-reader-actions { flex-basis: 100%; justify-content: flex-end; }
+}

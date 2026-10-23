@@ -4,7 +4,7 @@ export function restoreReadingScroll(
 ): () => void {
   const Observer = (body.ownerDocument.win as Window & { ResizeObserver?: typeof ResizeObserver }).ResizeObserver;
   let observer: ResizeObserver | undefined;
-  const events = ["wheel", "pointerdown", "touchstart", "keydown"] as const;
+  const events = ["wheel", "pointerdown", "touchstart", "keydown", "rss-outline-jump"] as const;
   const stop = () => {
     observer?.disconnect();
     observer = undefined;

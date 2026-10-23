@@ -5,6 +5,7 @@ import { articleFragment } from "./content";
 import { stableId, safeUrl } from "./safety";
 import { usesRssMediaPreview } from "./preview-routing";
 import { setIcon, setTooltip } from "obsidian";
+import { mountReaderOutline } from "../components/reader-outline";
 
 function action(
   parent: HTMLElement,
@@ -153,7 +154,9 @@ export function mountLearningPanel(
   item: FeedItem,
   controller?: DashellLearning,
 ): () => void {
-  if (!controller || usesRssMediaPreview(item)) return () => undefined;
+  if (usesRssMediaPreview(item)) return () => undefined;
+  const clearOutline = mountReaderOutline(container);
+  if (!controller) return clearOutline;
   const slot = container.closest(".rss-workbench")?.querySelector<HTMLElement>(".rss-dashell-learning-slot");
   const dropdown = slot?.createEl("details", { cls: "rss-dashell-learning-menu" });
   if (dropdown) {
@@ -188,6 +191,7 @@ export function mountLearningPanel(
   });
   return () => {
     disposed = true;
+    clearOutline();
     unsubscribe();
     clearVersions();
     panel.remove();

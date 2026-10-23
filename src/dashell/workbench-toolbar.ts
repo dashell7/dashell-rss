@@ -13,12 +13,14 @@ export function workbenchToolbar(options: {
   save: () => void;
   excerpt?: () => void;
   more: (anchor: HTMLElement) => void;
+  format?: (anchor: HTMLElement) => void;
 }): void {
   const { reader, item } = options;
   const old = reader.querySelector<HTMLElement>(".rss-reader-header");
   // Preserve mounted learning subscriptions and the current source version.
   const version = old?.querySelector(".rss-dashell-reader-version-slot");
   const learning = old?.querySelector(".rss-dashell-learning-slot");
+  const outline = old?.querySelector(".rss-article-outline");
   const toolbar = reader.createDiv({
     cls: "rss-reader-header rss-dashell-reader-toolbar",
   });
@@ -38,6 +40,11 @@ export function workbenchToolbar(options: {
       .querySelector(".rss-dashell-reader-version-slot")
       ?.replaceWith(version);
   const actions = toolbar.createDiv({ cls: "rss-reader-actions" });
+  if (outline) actions.append(outline);
+  if (options.format) {
+    const format = readerIcon(actions, "type", "阅读设置", () => options.format?.(format));
+    format.addClass("rss-workbench-format");
+  }
   const bookmark = readerIcon(
     actions,
     "bookmark",

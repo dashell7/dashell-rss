@@ -462,6 +462,7 @@ export class ReadingWorkbench {
       reader: this.reader,
       item,
       focused: this.prefs.focused,
+      format: (anchor) => this.openFormat(anchor),
       fold: () => this.toggleList(),
       navigate: (direction) => this.navigate(direction),
       update: (changes) => {

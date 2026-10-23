@@ -2,6 +2,8 @@
 
 ### Features
 
+- Adapted Qiaomu AI RSS 0.31.0 article outlines to Dashell's article previews: navigate heading levels, follow the current section, and keep the outline in sync with original, translated and rewritten versions. Reading settings are directly accessible from the workbench toolbar. See the [adaptation record](docs/DASHELL-QIAOMU-RSS-0310.md).
+
 - Adapted Qiaomu AI RSS 0.30.0 source discovery: preview RSS/Atom/JSON by content, choose feeds declared by a website, and open OPML links in the existing import preview. Adding a previewed source reuses its downloaded document and keeps Dashell's feed options. See the [adaptation record](docs/DASHELL-QIAOMU-RSS-0300.md).
 
 - Adapted Qiaomu AI RSS 0.29.2 variable-height list windows and Chinese input handling; reading lists retain their article anchor and mount only nearby rows. Article image cache requests wait until images approach the viewport.
