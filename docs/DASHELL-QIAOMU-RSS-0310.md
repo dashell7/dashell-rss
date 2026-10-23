@@ -45,14 +45,29 @@ introduced. Existing Reader/Player handoff and media previews keep their
 current lifecycle. `main.ts`, architecture baselines and lint suppressions are
 unchanged; no new main importer or runtime cycle is introduced.
 
+## CI dependency follow-up
+
+The initial feature CI stopped at the production audit for DOMPurify 3.4.16
+([run 39884207641](https://github.com/dashell7/dashell-rss/actions/runs/39884207641)).
+The existing dependency and its lockfile entry are updated to **3.4.17**,
+the maintainer's [patched release](https://github.com/cure53/DOMPurify/releases/tag/3.4.17),
+covering [template/shadow-root](https://github.com/advisories/GHSA-cg2g-xh64-v4q7),
+[in-place hook](https://github.com/advisories/GHSA-mrv2-3pqr-j5jr) and
+[XHTML SMIL](https://github.com/advisories/GHSA-c6gr-qvv4-5v3f) advisories.
+Only that production package changes; sanitizer configuration, development
+dependencies and audit thresholds remain intact. Production audit reports
+zero vulnerabilities, and both production/all-dependency high-severity gates
+pass. The full audit still reports six moderate development-toolchain findings;
+this is not a claim of zero vulnerabilities across all dependencies.
+
 ## Validation
 
 - Full unit suite: **336 files / 5,258 tests passed**, including duplicate
   headings, hierarchy, geometry caching, active section, pending restoration,
   version updates, original-node identity, keyboard/outside close, toolbar
   refresh, disposal and owning-window migration.
-- Coverage gates passed: statements **74.89%**, branches **66.26%**, functions
-  **73.47%**, lines **76.07%**.
+- Coverage gates passed after the dependency patch: statements **74.89%**,
+  branches **66.26%**, functions **73.49%**, lines **76.08%**.
 - `npm run build` passed: source ESLint with zero warnings, main/test types,
   architecture, platform, CSS scope/important, commit, release and doc checks.
 - Windows Obsidian (window title **1.14.4**) in the designated existing F: test
@@ -61,6 +76,9 @@ unchanged; no new main importer or runtime cycle is introduced.
   retention, empty state, direct reading settings, toolbar refresh, article
   switch and close passed. Actual 360px and desktop widths in light/dark themes
   showed visible panels without overflow; screenshots were visually checked.
+- Rebuilt and reinstalled after the DOMPurify patch, then repeated the host
+  reading/popout checks. Translated content still removes inert script
+  fixtures, inline event handlers and JavaScript links while retaining headings.
 - Actual native popout migration passed: same open panel, old-document clicks
   ignored, new-document outside close, jump/current section, Escape focus and
   disposal; no captured errors during these controlled operations.

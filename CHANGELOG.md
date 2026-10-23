@@ -12,6 +12,8 @@
 
 ### Fixes
 
+- Updated DOMPurify to 3.4.17 after the CI production audit reported the template/shadow-root, in-place hook and XHTML SMIL advisories. Existing sanitization rules and audit gates remain in force.
+
 - Updated the development-only Vite lock to patched 8.3.3 after the CI dependency audit reported its launch-editor advisory; production dependencies remain unchanged.
 
 - Adapted Qiaomu AI RSS 0.30.1 WeChat original-article links: cached proxy links open the validated HTTPS original in previews and ordinary exports, retaining the article query and cached source. Learning exports retain their existing plain-text link behavior. Prevented image-URL recovery from decoding unrelated query/fragment URLs. The 0.30.2 Qiaomu-specific podcast catalogue is outside Dashell's service scope; see the [adaptation record](docs/DASHELL-QIAOMU-RSS-0302.md).
