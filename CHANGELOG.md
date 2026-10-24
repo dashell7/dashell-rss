@@ -12,6 +12,10 @@
 
 ### Fixes
 
+- Adapted Qiaomu AI RSS 0.32.1 malformed rewrite images: recover standalone HTTP(S) images with an extra opening alt bracket before sanitization, retaining code and the existing hidden-image preview policy. Saved learning Markdown now keeps these images for Dashell Reader. See the [adaptation record](docs/DASHELL-QIAOMU-RSS-0321.md).
+
+- Updated the development-only undici lock from 7.30.0 to 7.30.1 after the dependency audit reported its excessive Content-Encoding denial-of-service advisory. Production packages and audit thresholds are unchanged.
+
 - Updated DOMPurify to 3.4.17 after the CI production audit reported the template/shadow-root, in-place hook and XHTML SMIL advisories. Existing sanitization rules and audit gates remain in force.
 
 - Updated the development-only Vite lock to patched 8.3.3 after the CI dependency audit reported its launch-editor advisory; production dependencies remain unchanged.

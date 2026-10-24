@@ -1,10 +1,42 @@
 // Adapted from Qiaomu AI RSS src/content.ts at ac2c792 (GPL-3.0-only).
 // Copyright (c) 向阳乔木. Changes: independent material contract and optional images.
+// Rewrite image recovery adapted from upstream 22f5509 (GPL-3.0-only).
 import createDOMPurify from "dompurify";
-import { marked } from "marked";
+import { Marked } from "marked";
 import { safeUrl } from "./safety";
 import type { Mode } from "./model";
 import { normalizeWechatArticleLinks } from "../utils/wechat-article-links";
+
+function escapeAttribute(value: string): string {
+  return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
+// Keep recovery local to rewrite Markdown; ordinary inline Markdown and code
+// remain under Marked's standard tokenizer, followed by our existing sanitizer.
+const rewriteMarkdown = new Marked({
+  extensions: [{
+    name: "recoveredImage",
+    level: "block",
+    tokenizer(source) {
+      const match = /^ {0,3}!\[([^\n]*)\]\((https?:\/\/[^\s<>]+)\)[ \t]*(?:\n|$)/.exec(source);
+      const alt = match?.[1];
+      const href = match?.[2];
+      if (!match || alt === undefined || href === undefined) return;
+      let depth = 0;
+      for (let index = 0; index < alt.length; index++) {
+        if (alt[index] === "\\") { index++; continue; }
+        if (alt[index] === "[") depth++;
+        if (alt[index] === "]") depth--;
+      }
+      if (depth <= 0) return;
+      return { type: "recoveredImage", raw: match[0], href, text: alt };
+    },
+    renderer(token) {
+      return `<p><img src="${escapeAttribute(String(token.href))}" alt="${escapeAttribute(String(token.text))}"></p>\n`;
+    },
+  }],
+});
 
 const tags = [
   "p",
@@ -51,7 +83,7 @@ export function articleFragment(
   base?: string,
 ): DocumentFragment {
   const html =
-    mode === "rewrite" ? marked.parse(content, { async: false }) : content;
+    mode === "rewrite" ? rewriteMarkdown.parse(content, { async: false }) : content;
   const win = doc.defaultView;
   if (!win) throw new Error("无法取得阅读窗口。");
   const fragment = createDOMPurify(win).sanitize(html, {

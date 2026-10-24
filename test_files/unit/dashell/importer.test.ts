@@ -6,6 +6,7 @@ import { emptyState, type Material } from "../../../src/dashell/model";
 import type { Network } from "../../../src/dashell/network";
 import { Learning } from "../../../src/dashell/learning";
 import { articleFragment } from "../../../src/dashell/content";
+import { marked } from "marked";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -42,6 +43,24 @@ function setup(overrides: Partial<Material> = {}) {
   return { app, store, network, importer };
 }
 describe("Dashell downloads preserve files and truthful status", () => {
+  it("saves malformed rewrite images as ordinary Markdown images without changing the source", async () => {
+    const rewrite = 'Read [**important words**](https://example.com/story).\n\n![[image](https://example.com/a.png)\n\n![[Image preview](https://example.com/b.png)\n\n![[image](https://example.com/image(2).png)\n\n![[AINews] DeepInfer](https://example.com/d.png)';
+    const h = setup({ rewrite });
+    await h.importer.enqueue("abc123");
+    const file = h.app.vault.getFiles().find(item => item.name === "A lesson - 改写.md");
+    if (!file) throw new Error("Expected saved rewrite");
+    const markdown = await h.app.vault.read(file);
+    const body = markdown.slice(markdown.indexOf("\n---\n") + 5);
+    // A separate, ordinary Markdown parser must understand the exported images.
+    const rendered = articleFragment(marked.parse(body, { async: false }), "original", document, true);
+    expect(Array.from(rendered.querySelectorAll("img"), image => image.getAttribute("src")))
+      .toEqual(["https://example.com/a.png", "https://example.com/b.png", "https://example.com/image(2).png", "https://example.com/d.png"]);
+    expect(rendered.querySelectorAll("a")).toHaveLength(0);
+    expect(rendered.querySelector("strong")?.textContent).toBe("important words");
+    expect(markdown).toContain("dashell_reader_versions:");
+    expect(h.store.state.materials[0]?.rewrite).toBe(rewrite);
+    expect(h.store.state.materials[0]?.content).toBe("<p>Original sentence.</p>");
+  });
   it("saves linked words as lookup text in every supplied article version, preserving formatting and images", async () => {
     const html = `<p>Read <a href="/story"><strong>important</strong> <em>words</em></a>, then <a href="#note">study</a>.
       <a href="/one">One</a> <a href="/two">two</a>.</p>
