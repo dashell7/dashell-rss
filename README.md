@@ -1,6 +1,6 @@
 # Dashell RSS
 
-Maintained by [dashell](https://github.com/dashell7). [Source](https://github.com/dashell7/dashell-rss) · [Issues](https://github.com/dashell7/dashell-rss/issues) · [Latest release 2.7.3](https://github.com/dashell7/dashell-rss/releases/latest).
+Maintained by [dashell](https://github.com/dashell7). [Source](https://github.com/dashell7/dashell-rss) · [Issues](https://github.com/dashell7/dashell-rss/issues) · [Latest release 2.7.4](https://github.com/dashell7/dashell-rss/releases/latest).
 
 Dashell RSS handles feed subscriptions, previews, and local saving of learning materials. [Dashell Reader](https://github.com/dashell7/dashell-reader) is for text reading and dictionary lookup; [Dashell Player](https://github.com/dashell7/dashell-player) is for audio, video, subtitles, and dictation. Install them separately or combine them for a local English-learning workflow.
 
@@ -8,7 +8,7 @@ This repository is a customization of RSS Dashboard. The original project docume
 
 ## Install Dashell RSS
 
-The current release is **2.7.3**. Dashell RSS is distributed from [GitHub Releases](https://github.com/dashell7/dashell-rss/releases) and is not the upstream RSS Dashboard Community Plugins listing.
+The current release is **2.7.4**. Dashell RSS is distributed from [GitHub Releases](https://github.com/dashell7/dashell-rss/releases) and is not the upstream RSS Dashboard Community Plugins listing.
 
 ### BRAT
 

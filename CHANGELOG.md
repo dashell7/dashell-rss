@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 2.7.4 - 2026-10-27
+
 ### Features
 
 - Adapted Qiaomu AI RSS 0.31.0 article outlines to Dashell's article previews: navigate heading levels, follow the current section, and keep the outline in sync with original, translated and rewritten versions. Reading settings are directly accessible from the workbench toolbar. See the [adaptation record](docs/DASHELL-QIAOMU-RSS-0310.md).
