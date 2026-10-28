@@ -1,5 +1,9 @@
 ## Unreleased
 
+### Fixes
+
+- Adapted Qiaomu AI RSS 0.32.8 responsive controls: prevent tablet icon collapse, wrap narrow workbench actions, provide 44px mobile controls, and improve search and date legibility. The 0.32.9 speech fallback belongs to Qiaomu's separate speech system; see the [adaptation record](docs/DASHELL-QIAOMU-RSS-0329.md).
+
 ## 2.7.4 - 2026-10-27
 
 ### Features

@@ -19,6 +19,8 @@
   flex-shrink: 0;
 }
 .rss-dashell-reader .rss-reader-actions {
+  flex-wrap: wrap;
+  max-width: 100%;
   gap: 2px;
   margin-left: auto;
 }
@@ -56,6 +58,7 @@
 .rss-dashell-reader .rss-dashboard-tags-toggle svg {
   width: 17px;
   height: 17px;
+  flex-shrink: 0;
   stroke-width: 1.7;
 }
 .rss-dashell-reader .rss-reader-star-toggle.starred svg {
@@ -210,4 +213,15 @@
   .rss-dashell-reader .rss-reader-actions {
     flex-basis: 100%;
   }
+}
+/* Native icon buttons avoid the tablet host's text-button padding. */
+.is-mobile .rss-dashell-reader .rss-dashell-reader-icon,
+.is-mobile .rss-dashell-reader .rss-reader-action-button,
+.is-mobile .rss-dashell-reader .rss-dashboard-tags-toggle {
+  width: 44px;
+  height: 44px;
+  padding: 7px;
+}
+.is-mobile .rss-dashell-reader .rss-dashell-reader-mode {
+  min-height: 44px;
 }

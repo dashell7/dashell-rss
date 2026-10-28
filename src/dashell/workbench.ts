@@ -69,13 +69,14 @@ export class ReadingWorkbench {
     if (options.back)
       readerIcon(toolbar, "arrow-left", "返回订阅首页", options.back);
     this.channelButton = toolbar.createEl("button", {
-      cls: "rss-workbench-channel",
+      cls: "clickable-icon rss-workbench-channel",
       attr: { type: "button", "aria-haspopup": "dialog" },
     });
     this.channelButton.addEventListener("click", () => this.pickChannel());
-    readerIcon(toolbar, "plus", "管理订阅", options.manageFeeds);
-    readerIcon(toolbar, "search", "搜索文章", () => this.toggleSearch());
-    const refresh = readerIcon(toolbar, "refresh-cw", "刷新订阅", () => {
+    const actions = toolbar.createDiv({ cls: "rss-workbench-sidebar-actions" });
+    readerIcon(actions, "plus", "管理订阅", options.manageFeeds);
+    readerIcon(actions, "search", "搜索文章", () => this.toggleSearch());
+    const refresh = readerIcon(actions, "refresh-cw", "刷新订阅", () => {
       refresh.disabled = true;
       void this.run(options.refresh).finally(() => {
         refresh.disabled = false;

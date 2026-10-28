@@ -9,7 +9,7 @@ export function readerIcon(
   run: () => void,
 ): HTMLButtonElement {
   const button = parent.createEl("button", {
-    cls: "rss-dashell-reader-icon",
+    cls: "clickable-icon rss-dashell-reader-icon",
     attr: { type: "button" },
   });
   setIcon(button, icon);

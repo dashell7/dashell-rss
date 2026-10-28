@@ -81,6 +81,28 @@ afterEach(() => {
 });
 
 describe("Qiaomu-style reading workbench", () => {
+  it("keeps icon and channel controls outside the tablet host's text-button padding rule", async () => {
+    document.body.addClass("is-mobile", "is-tablet");
+    const { root, view, items } = surface();
+    try {
+      await view.open(items[0]);
+      const controls = root.querySelectorAll<HTMLButtonElement>(
+        ".rss-dashell-reader-icon, .rss-workbench-channel",
+      );
+      expect(controls.length).toBeGreaterThan(10);
+      for (const control of controls) {
+        expect(control.matches(".is-tablet button:not(.clickable-icon)")).toBe(false);
+        expect(control.type).toBe("button");
+      }
+      const search = root.querySelector<HTMLButtonElement>('[aria-label="搜索文章"]')!;
+      search.click();
+      expect(root.querySelector<HTMLElement>(".rss-workbench-search")!.hidden).toBe(false);
+      expect(document.activeElement).toBe(root.querySelector('input[type="search"]'));
+    } finally {
+      view.dispose();
+      document.body.removeClass("is-mobile", "is-tablet");
+    }
+  });
   it("waits for Chinese composition and keeps Escape available to the input method", async () => {
     const { root, view, items } = surface();
     items[0].title = "中文学习";
