@@ -1,3 +1,4 @@
+import { applyTagAppearance } from "../../utils/tag-colors";
 import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import type RssDashboardPlugin from "../../../main";
 import type {
@@ -438,7 +439,7 @@ export class EditFeedModal extends Modal {
           cls: "rss-dashboard-tag-badge",
           text: tag.name,
         });
-        tagEl.setCssProps({ "--tag-color": tag.color });
+        applyTagAppearance(tagEl, tag, this.plugin.settings);
       });
     }
 
@@ -743,6 +744,7 @@ export class EditFeedModal extends Modal {
       );
 
     addTagMultiSelectControl({
+      tagAppearanceSettings: this.plugin.settings,
       setting: autoTagSetting,
       availableTags,
       selectedTagNames: this.customTags,

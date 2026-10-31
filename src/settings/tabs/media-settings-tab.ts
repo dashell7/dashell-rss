@@ -30,6 +30,11 @@ export function renderMediaSettingsTab(
 ): void {
   new Setting(containerEl).setName("Playback progress").setHeading();
 
+  new Setting(containerEl).setName("Video focus mode").setDesc("Hide video details, related items, and source links while watching.")
+    .addToggle(toggle => toggle.setValue(plugin.settings.media.videoFocusMode ?? false).onChange(async value => {
+      plugin.settings.media.videoFocusMode = value;
+      await plugin.saveSettings();
+    }));
   new Setting(containerEl)
     .setName("Remember playback progress")
     .setDesc(

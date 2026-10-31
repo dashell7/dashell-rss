@@ -234,6 +234,7 @@ function resolveExistingCoverImage(
   ctx: FeedItemContext,
 ): string {
   const { item, audio, request } = work;
+  if (existingItem.coverImageFromPage) return sanitizeArticleImageUrl(existingItem.coverImage);
   const url = request.feedUrl;
   if (audio.isPodcast) {
     return (

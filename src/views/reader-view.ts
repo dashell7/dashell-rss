@@ -1,3 +1,9 @@
+import { SwipeNavigator, areSwipePanelsEnabled } from "../utils/swipe-gesture";
+import { templatePlacesImage } from "../services/article-template/template-variables";
+import { removeTemplateImageFromBody } from "../services/article-template/note-template";
+import { addTableTurndownRule } from "../utils/table-markdown";
+import { twitchChannelFor, twitchVodIdFor } from "../utils/twitch-embed";
+import { applyTagAppearance } from "../utils/tag-colors";
 import {
   ItemView,
   WorkspaceLeaf,
@@ -105,7 +111,7 @@ import {
 import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
 import { openWebViewerSaveModal } from "../modals/web-viewer-save-modal";
 import { setupReaderHotkeys } from "../hotkeys/reader-hotkeys";
-import { readerStart } from '../dashell/reader-chrome';
+import { readerStart } from "../dashell/reader-chrome";
 
 const VIDEO_ARTICLE_BANNER =
   "This item appears to be a video. Open the source page to watch.";
@@ -123,7 +129,10 @@ const STARRED_IMPORT_FETCH_FAILED_NOTICE =
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
 
 export class ReaderView extends ItemView {
-  private onLearningPreview?: (container: HTMLElement, item: FeedItem) => () => void;
+  private onLearningPreview?: (
+    container: HTMLElement,
+    item: FeedItem,
+  ) => () => void;
   private learningCleanup?: () => void;
   private currentItem: FeedItem | null = null;
   private readingContainer!: HTMLElement;
@@ -238,7 +247,10 @@ export class ReaderView extends ItemView {
       shouldRerender?: boolean,
     ) => void,
     options?: {
-      onLearningPreview?: (container: HTMLElement, item: FeedItem) => () => void;
+      onLearningPreview?: (
+        container: HTMLElement,
+        item: FeedItem,
+      ) => () => void;
       onPlaybackProgress?: (
         item: FeedItem,
         position: number,
@@ -258,6 +270,7 @@ export class ReaderView extends ItemView {
     this.onArticleUpdate = onArticleUpdate;
     this.onPlaybackProgress = options?.onPlaybackProgress;
     addMathTurndownRule(this.turndownService);
+    addTableTurndownRule(this.turndownService);
 
     this.scope = new Scope(this.app.scope);
     this.setupScope();
@@ -640,17 +653,26 @@ export class ReaderView extends ItemView {
     }
   }
 
-  private buildReaderSaveMarkdown(item: FeedItem): string {
+  private buildReaderSaveMarkdown(
+    item: FeedItem,
+    customTemplate?: string,
+  ): string {
     const htmlToSave =
       this.currentFullContent && this.currentContentIsFullArticle
         ? this.stripNavigationChromeFromHtml(
             this.stripTopHeadlineFromHtml(this.currentFullContent),
           )
         : this.currentFullContent || item.description || "";
-    const htmlWithHero = this.prependFallbackHeroForSavedMarkdown(
-      item,
-      htmlToSave,
-    );
+    const template =
+      customTemplate ??
+      this.getCustomTemplateForArticle(item) ??
+      this.settings.articleSaving.defaultTemplate;
+    const hero = templatePlacesImage(template || "")
+      ? this.articleSaver.getFallbackHeroUrl?.(item) || item.coverImage || ""
+      : "";
+    const htmlWithHero = hero
+      ? removeTemplateImageFromBody(htmlToSave, hero)
+      : this.prependFallbackHeroForSavedMarkdown(item, htmlToSave);
     const normalizedSaveHtml =
       this.normalizeBlockLinksForSavedMarkdown(htmlWithHero);
     return this.turndownService.turndown(
@@ -818,6 +840,19 @@ export class ReaderView extends ItemView {
   }
 
   onOpen(): Promise<void> {
+    const swipe = new SwipeNavigator(this.containerEl, {
+      isEnabled: () =>
+        areSwipePanelsEnabled(this.settings, this.containerEl.win.innerWidth),
+      onSwipe: (direction) => {
+        if (direction === "right") void this.navigateBackToDashboard();
+      },
+    });
+    swipe.sync();
+    this.register(() => swipe.destroy());
+    if (typeof this.app.workspace.on === "function")
+      this.registerEvent(
+        this.app.workspace.on("layout-change", () => swipe.sync()),
+      );
     this.contentEl.empty();
     this.contentEl.addClass("rss-reader-view", "rss-dashell-reader");
 
@@ -845,11 +880,16 @@ export class ReaderView extends ItemView {
       );
     }
 
-    const header = this.contentEl.createDiv({ cls: "rss-reader-header rss-dashell-reader-toolbar" });
+    const header = this.contentEl.createDiv({
+      cls: "rss-reader-header rss-dashell-reader-toolbar",
+    });
 
-    const backButton = header.createEl('button', { cls: "rss-reader-back-button rss-dashell-reader-icon", attr: { type: 'button' } });
+    const backButton = header.createEl("button", {
+      cls: "rss-reader-back-button rss-dashell-reader-icon",
+      attr: { type: "button" },
+    });
     setIcon(backButton, "arrow-left");
-    setTooltip(backButton, '返回订阅列表');
+    setTooltip(backButton, "返回订阅列表");
 
     const handleBackClick = () => {
       void this.navigateBackToDashboard();
@@ -857,14 +897,18 @@ export class ReaderView extends ItemView {
 
     backButton.addEventListener("click", handleBackClick);
 
-    this.titleElement = readerStart(header, () => this.actionNavigatePrevious(), () => this.actionNavigateNext());
+    this.titleElement = readerStart(
+      header,
+      () => this.actionNavigatePrevious(),
+      () => this.actionNavigateNext(),
+    );
 
     this.currentItem = null;
 
     const actions = header.createDiv({ cls: "rss-reader-actions" });
 
     // Save button
-    this.saveButton = actions.createEl('button', {
+    this.saveButton = actions.createEl("button", {
       cls: "rss-reader-action-button",
       attr: { "aria-label": "Save article" },
     });
@@ -889,7 +933,7 @@ export class ReaderView extends ItemView {
     });
 
     // Read toggle button
-    this.readToggleButton = actions.createEl('button', {
+    this.readToggleButton = actions.createEl("button", {
       cls: "rss-reader-action-button rss-reader-read-toggle",
       attr: { "aria-label": "Mark as read/unread" },
     });
@@ -901,7 +945,7 @@ export class ReaderView extends ItemView {
     });
 
     // Star toggle button
-    this.starToggleButton = actions.createEl('button', {
+    this.starToggleButton = actions.createEl("button", {
       cls: "rss-reader-action-button rss-reader-star-toggle",
       attr: {
         role: "button",
@@ -946,7 +990,7 @@ export class ReaderView extends ItemView {
     tagsButton.addEventListener("click", toggleTagsMenu);
 
     // Reader formatting button
-    const readerFormatButton = actions.createEl('button', {
+    const readerFormatButton = actions.createEl("button", {
       cls: "rss-reader-action-button rss-reader-format-button",
       attr: {
         "aria-label": "Reader settings",
@@ -962,7 +1006,7 @@ export class ReaderView extends ItemView {
     actions.prepend(readerFormatButton);
 
     // Open in browser button
-    const browserButton = actions.createEl('button', {
+    const browserButton = actions.createEl("button", {
       cls: "rss-reader-action-button",
       attr: { "aria-label": "Open in browser" },
     });
@@ -1040,16 +1084,10 @@ export class ReaderView extends ItemView {
       cls: "rss-reader-content",
     });
     this.register(
-      trackReaderMathSelection(
-        this.containerEl,
-        () => this.readingContainer,
-      ),
+      trackReaderMathSelection(this.containerEl, () => this.readingContainer),
     );
     this.registerDomEvent(this.containerEl, "copy", (event) => {
-      const result = handleReaderMathCopy(
-        event,
-        this.readingContainer,
-      );
+      const result = handleReaderMathCopy(event, this.readingContainer);
       if (result === "failed") {
         new Notice(
           "Could not copy formula source; copied rendered selection instead.",
@@ -1182,8 +1220,8 @@ export class ReaderView extends ItemView {
       displayTitle: this.currentDisplayTitle,
       getCustomTemplateForArticle: (article) =>
         this.getCustomTemplateForArticle(article),
-      buildReaderSaveMarkdown: (article) =>
-        this.buildReaderSaveMarkdown(article),
+      buildReaderSaveMarkdown: (article, template) =>
+        this.buildReaderSaveMarkdown(article, template),
       onArticleSave: (article) => this.onArticleSave(article),
       updateSavedLabel: (saved) => this.updateSavedLabel(saved),
     };
@@ -1250,7 +1288,11 @@ export class ReaderView extends ItemView {
       this.syncReaderTitle();
       await this.displayArticle(item, fullContent);
     }
-    if (this.currentItem === item) this.learningCleanup = this.onLearningPreview?.(this.readingContainer, { ...item, content: this.currentFullContent || item.content });
+    if (this.currentItem === item)
+      this.learningCleanup = this.onLearningPreview?.(this.readingContainer, {
+        ...item,
+        content: this.currentFullContent || item.content,
+      });
   }
 
   private async displayVideo(item: FeedItem): Promise<void> {
@@ -1261,7 +1303,7 @@ export class ReaderView extends ItemView {
     const container = this.readingContainer.createDiv({
       cls: "rss-reader-video-container enhanced",
     });
-    if (item.videoId) {
+    if (item.videoId || twitchChannelFor(item) || twitchVodIdFor(item)) {
       this.videoPlayer = new VideoPlayer(
         container,
         (selectedVideo) => {
@@ -1270,6 +1312,7 @@ export class ReaderView extends ItemView {
         this.onPlaybackProgress,
         this.settings.media.rememberPlaybackProgress,
         this.settings.useFirstSeenDateFallback,
+        this.settings.media.videoFocusMode ?? false,
       );
       this.videoPlayer.loadVideo(item);
       if (this.relatedItems.length > 0) {
@@ -1336,6 +1379,7 @@ export class ReaderView extends ItemView {
         this.settings.media.rememberPlaybackProgress,
         this.settings.media.defaultPlaySpeed ?? 1,
         this.settings.useFirstSeenDateFallback,
+        this.settings,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {
@@ -1355,6 +1399,7 @@ export class ReaderView extends ItemView {
           this.settings.media.rememberPlaybackProgress,
           this.settings.media.defaultPlaySpeed ?? 1,
           this.settings.useFirstSeenDateFallback,
+          this.settings,
         );
         this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
       } else {
@@ -1569,7 +1614,7 @@ export class ReaderView extends ItemView {
           cls: "rss-reader-tag",
         });
         tagElement.textContent = tag.name;
-        tagElement.style.setProperty("--tag-color", tag.color);
+        applyTagAppearance(tagElement, tag, this.settings);
       }
     }
 
@@ -1608,7 +1653,6 @@ export class ReaderView extends ItemView {
         undefined,
       );
     }
-
 
     if (contentToRender) {
       const contentContainer = this.readingContainer.createDiv({
@@ -1737,7 +1781,8 @@ export class ReaderView extends ItemView {
       return;
     }
 
-    this.currentFullContent = result.content || item.content || item.description || "";
+    this.currentFullContent =
+      result.content || item.content || item.description || "";
     this.currentContentIsFullArticle = Boolean(result.content);
     if (result.content) {
       this.currentDisplayTitle =
@@ -1853,8 +1898,7 @@ export class ReaderView extends ItemView {
       if (heroSlot) {
         placeHeroImage(doc, heroSlot, fallbackHeroUrl, title, {
           setupLightbox: (img) => this.setupLightboxForImage(img),
-          isLikelySameImageSource: (a, b) =>
-            this.isLikelySameImageSource(a, b),
+          isLikelySameImageSource: (a, b) => this.isLikelySameImageSource(a, b),
           removeLeadImageElement: (el) => this.removeLeadImageElement(el),
         });
       }
@@ -2058,8 +2102,15 @@ export class ReaderView extends ItemView {
       this.settings.corsProxyEnabled && this.settings.corsProxyUrl
         ? this.settings.corsProxyUrl
         : undefined;
+    const fetchingItem = this.currentItem;
     const result = await fetchFullArticleContentWithOutcome(url, proxyUrl);
     this.currentFullContentFailureType = result.failureType;
+    if (
+      result.coverImage !== undefined &&
+      this.currentItem === fetchingItem &&
+      fetchingItem
+    )
+      fetchingItem.coverImage = result.coverImage;
     return result.content;
   }
 
@@ -2221,8 +2272,7 @@ export class ReaderView extends ItemView {
         ? (plugins.getPlugin("rss-dashboard") as TagsPlugin | null)
         : null;
     const pluginByRegistry = plugins?.plugins?.["rss-dashboard"] as
-      | TagsPlugin
-      | undefined;
+      TagsPlugin | undefined;
 
     const plugin = pluginByGetter || pluginByRegistry;
     if (typeof plugin?.openTagsSettings === "function") {
@@ -2267,7 +2317,7 @@ export class ReaderView extends ItemView {
         cls: "rss-reader-tag",
       });
       tagElement.textContent = tag.name;
-      tagElement.style.setProperty("--tag-color", tag.color);
+      applyTagAppearance(tagElement, tag, this.settings);
     }
   }
 
@@ -2481,8 +2531,7 @@ export class ReaderView extends ItemView {
         ? (plugins.getPlugin("rss-dashboard") as SettingsPlugin | null)
         : null;
     const pluginByRegistry = plugins?.plugins?.["rss-dashboard"] as
-      | SettingsPlugin
-      | undefined;
+      SettingsPlugin | undefined;
 
     const plugin = pluginByGetter || pluginByRegistry;
     if (typeof plugin?.openSettingsToTab === "function") {
@@ -2561,10 +2610,7 @@ export class ReaderView extends ItemView {
 
     // Update star toggle
     if (this.starToggleButton) {
-      setIcon(
-        this.starToggleButton,
-        "bookmark",
-      );
+      setIcon(this.starToggleButton, "bookmark");
       this.starToggleButton.classList.toggle(
         "starred",
         this.currentItem.starred,
@@ -2587,7 +2633,7 @@ export class ReaderView extends ItemView {
     if (this.saveButton) {
       const isSaved = Boolean(this.currentItem.saved);
       this.saveButton.toggleClass("saved", isSaved);
-      setIcon(this.saveButton, isSaved ? 'file-check' : 'file-plus');
+      setIcon(this.saveButton, isSaved ? "file-check" : "file-plus");
       setTooltip(
         this.saveButton,
         isSaved ? "Click to open saved article" : "Save article",

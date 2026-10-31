@@ -65,13 +65,13 @@ describe("tag-layout-utils", () => {
       expect(badge.style.getPropertyValue("--tag-color")).toBe("#e74c3c");
     });
 
-    it("uses interactive-accent as default color when tag has no color", () => {
-      const tags: Tag[] = [{ name: "NoColor", color: "" }];
+    it("uses the shared default color when a tag inherits its appearance", () => {
+      const tags: Tag[] = [{ name: "NoColor" }];
 
       renderTagChips(container, tags);
 
       const badge = container.querySelector(".rss-dashboard-tag-badge") as HTMLElement;
-      expect(badge.style.getPropertyValue("--tag-color")).toBe("var(--interactive-accent)");
+      expect(badge.style.getPropertyValue("--tag-color")).toBe("#8a5cf5");
     });
   });
 

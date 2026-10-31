@@ -115,11 +115,9 @@ describe("renderTagsSettingsTab()", () => {
 
     renderTagsSettingsTab(containerEl, plugin, vi.fn());
 
-    expect(
-      getSettingByName(containerEl, "Tag color").querySelector<HTMLInputElement>(
-        "input[type='color']",
-      )?.value,
-    ).toBe("#8a5cf5");
+    getSettingByName(containerEl, "Add new tag").querySelector<HTMLButtonElement>("button")!.click();
+    expect(document.querySelector<HTMLInputElement>(".rss-dashboard-tag-modal-color-picker")?.value).toBe("#8a5cf5");
+
   });
 
   it("renders all auto-tag rows as tag multi-select triggers instead of native selects", () => {
@@ -341,11 +339,11 @@ describe("renderTagsSettingsTab()", () => {
     renderTagsSettingsTab(containerEl, plugin, vi.fn());
 
     const tagSetting = getSettingByName(containerEl, "tag1");
-    const picker = tagSetting.querySelector(
-      'input[type="color"]',
-    ) as HTMLInputElement;
+    tagSetting.querySelector<HTMLButtonElement>("button")!.click();
+    const picker = document.querySelector<HTMLInputElement>(".rss-dashboard-tag-modal-color-picker")!;
     picker.value = "#ff0000";
     picker.dispatchEvent(new Event("input"));
+    Array.from(document.querySelectorAll<HTMLButtonElement>(".rss-dashboard-tag-modal-form button")).find(button => button.textContent === "Save changes")!.click();
     await flushPromises();
 
     expect(plugin.settings.availableTags[0].color).toBe("#ff0000");
@@ -400,24 +398,14 @@ describe("renderTagsSettingsTab()", () => {
 
     renderTagsSettingsTab(containerEl, plugin, onRefresh);
 
-    const tagNameSetting = getSettingByName(containerEl, "Tag name");
-    const nameInput = tagNameSetting.querySelector(
-      'input[type="text"]',
-    ) as HTMLInputElement;
+    getSettingByName(containerEl, "Add new tag").querySelector<HTMLButtonElement>("button")!.click();
+    const nameInput = document.querySelector<HTMLInputElement>(".rss-dashboard-tag-modal-form input[type=text]")!;
     nameInput.value = "newTag";
     nameInput.dispatchEvent(new Event("input"));
-
-    const tagColorSetting = getSettingByName(containerEl, "Tag color");
-    const colorInput = tagColorSetting.querySelector(
-      'input[type="color"]',
-    ) as HTMLInputElement;
+    const colorInput = document.querySelector<HTMLInputElement>(".rss-dashboard-tag-modal-color-picker")!;
     colorInput.value = "#123456";
     colorInput.dispatchEvent(new Event("input"));
-
-    const addBtn = Array.from(containerEl.querySelectorAll("button")).find(
-      (b) => b.textContent === "Add tag",
-    ) as HTMLButtonElement;
-    addBtn.click();
+    Array.from(document.querySelectorAll<HTMLButtonElement>(".rss-dashboard-tag-modal-form button")).find(button => button.textContent === "Add tag")!.click();
     await flushPromises();
 
     expect(plugin.settings.availableTags).toHaveLength(1);

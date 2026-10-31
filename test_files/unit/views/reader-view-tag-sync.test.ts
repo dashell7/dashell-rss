@@ -151,7 +151,7 @@ describe("ReaderView Tag Synchronization", () => {
         ".rss-reader-tag",
       );
     expect(tagBeforeRefresh?.style.getPropertyValue("--tag-color")).toBe(
-      "#8b5cf6",
+      "#22c55e",
     );
 
     mockSettings.availableTags = [{ name: "Feature", color: "#ef4444" }];

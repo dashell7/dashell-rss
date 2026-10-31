@@ -1,7 +1,9 @@
+import { applyTagAppearance, type TagAppearanceSettings } from "../utils/tag-colors";
 import { setIcon } from "obsidian";
 import type { Tag } from "../types/types";
 
 export interface TagMultiSelectControlOptions {
+  tagAppearanceSettings?: TagAppearanceSettings;
   setting: import("obsidian").Setting;
   availableTags: ReadonlyArray<Tag>;
   selectedTagNames: ReadonlyArray<string>;
@@ -96,7 +98,7 @@ export function addTagMultiSelectControl(
       setIcon(check, isSelected ? "check" : "plus");
 
       const swatch = option.createSpan({ cls: CLS_MENU_SWATCH });
-      swatch.style.setProperty("--tag-color", tag.color);
+      applyTagAppearance(swatch, tag, opts.tagAppearanceSettings ?? { availableTags });
 
       option.createSpan({
         cls: `${CLS_MENU_OPTION}-label`,

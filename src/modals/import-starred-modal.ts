@@ -640,7 +640,7 @@ export class ImportStarredModal extends Modal {
 
     const list = section.createDiv({ cls: "import-new-tags-list" });
     for (const tag of newTags) {
-      const chip = createTagChip(list, tag);
+      const chip = createTagChip(list, tag, this.plugin.settings);
       chip.addClass("import-new-tags-chip");
       chip.setAttr("role", "button");
       chip.setAttr("tabindex", "0");
@@ -690,7 +690,7 @@ export class ImportStarredModal extends Modal {
       cls: "import-new-tags-color-input",
       attr: {
         type: "color",
-        value: sharedColor ?? DEFAULT_TAG_COLOR,
+        value: sharedColor ?? this.plugin.settings.defaultTagColor ?? DEFAULT_TAG_COLOR,
         "aria-label": "Set one color for all new tags",
       },
     });
@@ -720,7 +720,7 @@ export class ImportStarredModal extends Modal {
     this.onActivate(reset, () =>
       this.recolorNewTags(
         newTags,
-        newTags.map(() => DEFAULT_TAG_COLOR),
+        newTags.map(() => undefined),
       ),
     );
   }
@@ -754,10 +754,10 @@ export class ImportStarredModal extends Modal {
     });
   }
 
-  private recolorNewTags(tags: readonly Tag[], colors: readonly string[]): void {
+  private recolorNewTags(tags: readonly Tag[], colors: readonly (string | undefined)[]): void {
     tags.forEach((tag, index) => {
       const color = colors[index];
-      if (color) this.applyTagEditToCandidates(tag, { ...tag, color });
+      this.applyTagEditToCandidates(tag, { ...tag, color });
     });
     this.redrawCandidateTags();
   }
@@ -1161,7 +1161,7 @@ export class ImportStarredModal extends Modal {
         const lowerName = tag.name.toLowerCase();
         if (existingByLowerName.has(lowerName)) continue;
 
-        const newTag: Tag = { name: tag.name, color: tag.color };
+        const newTag: Tag = { ...tag };
         availableTags.push(newTag);
         existingByLowerName.set(lowerName, newTag);
       }

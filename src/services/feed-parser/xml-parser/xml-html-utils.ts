@@ -128,6 +128,40 @@ function decodeEntity(match: string, body: string): string {
   return num >= 0 && num <= 0x10ffff ? String.fromCodePoint(num) : match;
 }
 
+// Attribute text is matched one character at a time so no quantifier is nested
+// inside another; a run of unclosed `<i !!!` input then fails in linear time.
+const TAG_ATTRIBUTES = String.raw`(?:\s(?:[^<>"']|"[^"]*"|'[^']*')*)?`;
+
+const PAIRED_FORMATTING_TAG = new RegExp(
+  String.raw`<(strong|strike|small|span|sub|sup|del|div|ins|mark|em|i|b|s|u|p|a)${TAG_ATTRIBUTES}>([\s\S]*?)<\/\1\s*>`,
+  "gi",
+);
+
+const VOID_FORMATTING_TAG = new RegExp(
+  String.raw`<(br|wbr)${TAG_ATTRIBUTES}\/?>`,
+  "gi",
+);
+
+/**
+ * Strips paired formatting markup from a title, such as `<em>Wicker</em>`.
+ * Only known formatting tags are removed, and only when an opening tag has a
+ * matching closing tag, so literal text such as `INumber<T>`, `Why 3 < 4`, and
+ * an unpaired `<b>` mention survive. `br`/`wbr` are removed on their own.
+ * Entity decoding is the caller's job; this runs on text already decoded once.
+ */
+export function stripTitleFormattingTags(text: string): string {
+  if (!text) return "";
+
+  let stripped = text;
+  let previous: string;
+  do {
+    previous = stripped;
+    stripped = stripped.replace(PAIRED_FORMATTING_TAG, " $2 ");
+  } while (stripped !== previous);
+
+  return stripped.replace(VOID_FORMATTING_TAG, " ").replace(/\s+/g, " ").trim();
+}
+
 /** Decodes each entity once; decoded text is never scanned again. */
 export function decodeHtmlEntities(text: string): string {
   if (!text) return "";

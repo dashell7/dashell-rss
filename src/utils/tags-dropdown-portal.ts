@@ -1,3 +1,4 @@
+import { applyTagAppearance } from "./tag-colors";
 import { type App, Notice, setIcon } from "obsidian";
 import type { FeedItem, RssDashboardSettings, Tag } from "../types/types";
 import { DEFAULT_TAG_COLOR } from "./tag-colors";
@@ -175,7 +176,7 @@ export function createTagsDropdownPortal(
       cls: "rss-dashboard-tag-label",
       text: tag.name,
     });
-    tagLabel.style.setProperty("--tag-color", tag.color);
+    applyTagAppearance(tagLabel, tag, settings);
 
     const editButton = tagItem.createDiv({
       cls: "rss-dashboard-tag-action-button rss-dashboard-tag-edit-button clickable-icon",
@@ -243,7 +244,7 @@ export function createTagsDropdownPortal(
         settings,
         tag,
         onSave: async (updatedTag) => {
-          persistSettings();
+          await onPersistSettings?.();
           notifySettingsTagsMutated();
           onTagEdited?.(previousTag, updatedTag);
           rerenderTagItems();

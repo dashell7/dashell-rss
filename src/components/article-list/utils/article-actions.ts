@@ -54,6 +54,7 @@ export function createReadToggle(
       role: "button",
       tabindex: "0",
       "aria-label": arg.article.read ? "Mark as unread" : "Mark as read",
+      "aria-pressed": String(arg.article.read),
     },
   });
   setIcon(readToggle, arg.article.read ? "check-circle" : "circle");
@@ -63,6 +64,8 @@ export function createReadToggle(
     const newReadState = !arg.article.read;
     arg.article.read = newReadState;
     arg.callbacks.onArticleUpdate?.(arg.article, { read: newReadState }, false);
+    readToggle.setAttribute("aria-label", newReadState ? "Mark as unread" : "Mark as read");
+    readToggle.setAttribute("aria-pressed", String(newReadState));
     readToggle.classList.toggle("read", newReadState);
     readToggle.classList.toggle("unread", !newReadState);
     setIcon(readToggle, newReadState ? "check-circle" : "circle");
@@ -115,18 +118,20 @@ export function createSaveButton(
 
       try {
         await arg.callbacks.onArticleSave(arg.article);
-        arg.article.saved = true;
+        if (!arg.article.saved) return;
         saveButton.classList.add("saved");
         setIcon(saveButton, "save");
         if (!saveButton.querySelector("svg")) {
           saveButton.textContent = "S";
         }
+        saveButton.setAttribute("aria-label", "Click to open saved article");
         setTooltip(saveButton, "Click to open saved article");
       } catch (error) {
         console.error("Failed to save article via card button:", error);
         new Notice("Failed to save article.");
       } finally {
         saveButton.classList.remove("saving");
+        if (!arg.article.saved) setTooltip(saveButton, arg.settings.articleSaving?.saveFullContent ? "Save full article content to notes" : "Save article summary to notes");
       }
     }
   };
@@ -174,6 +179,8 @@ export function createStarToggle(
       { starred: newStarState },
       false,
     );
+    starToggle.setAttribute("aria-label", newStarState ? "Remove from starred items" : "Add to starred items");
+    starToggle.setAttribute("aria-pressed", String(newStarState));
     starToggle.classList.toggle("starred", newStarState);
     starToggle.classList.toggle("unstarred", !newStarState);
     const iconEl = starToggle.querySelector(".rss-dashboard-star-icon");

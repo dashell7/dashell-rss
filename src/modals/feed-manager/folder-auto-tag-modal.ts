@@ -61,6 +61,7 @@ export class FolderAutoTagModal extends Modal {
       );
 
     addTagMultiSelectControl({
+      tagAppearanceSettings: this.plugin.settings,
       setting: autoTagSetting,
       availableTags: this.plugin.settings.availableTags,
       selectedTagNames: this.selectedTagNames,

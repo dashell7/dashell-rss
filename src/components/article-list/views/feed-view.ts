@@ -136,7 +136,7 @@ function renderArticleCard(
     const tagsContainer = tagsRegion.createDiv({
       cls: "rss-dashboard-tag-container",
     });
-    renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
+    renderSingleRowCardTagChips(tagsContainer, article.tags ?? [], { ...ctx.settings, availableTags: ctx.settings.availableTags ?? [] });
   }
 
   const feedFooter = feedItem.createEl("footer", {

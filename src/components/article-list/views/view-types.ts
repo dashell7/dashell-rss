@@ -32,6 +32,9 @@ export interface BaseViewContext {
     RssDashboardSettings,
     "highlights" | "display" | "useFirstSeenDateFallback"
   > & {
+    availableTags?: RssDashboardSettings["availableTags"];
+    defaultTagColor?: string;
+    defaultTagTextColor?: string;
     articleGroupBy?: RssDashboardSettings["articleGroupBy"];
     collapsedFeedSections?: string[];
   };

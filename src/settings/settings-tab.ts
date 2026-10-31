@@ -51,6 +51,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
   private currentTab: SettingsTabName = getInitialTab();
   private pendingSection: string | null = null;
   private displaySettingsCleanup: (() => void) | null = null;
+  private tagSettingsCleanup: (() => void) | null = null;
   private settingsLocalizationCleanup: (() => void) | null = null;
 
   constructor(app: App, plugin: RssDashboardPlugin) {
@@ -72,7 +73,16 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     this.display();
   }
 
+  hide(): void {
+    this.tagSettingsCleanup?.();
+    this.tagSettingsCleanup = null;
+    this.displaySettingsCleanup?.();
+    this.displaySettingsCleanup = null;
+  }
+
   display(): void {
+    this.tagSettingsCleanup?.();
+    this.tagSettingsCleanup = null;
     this.displaySettingsCleanup?.();
     this.displaySettingsCleanup = null;
     this.settingsLocalizationCleanup?.();
@@ -159,7 +169,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         this.pendingSection = null;
         break;
       case "Tags":
-        renderTagsSettingsTab(tabContent, this.plugin, onRefresh);
+        this.tagSettingsCleanup = renderTagsSettingsTab(tabContent, this.plugin, onRefresh);
         this.pendingSection = null;
         break;
       case "About":

@@ -1283,3 +1283,15 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
     transform: translateX(0);
   }
 }
+.rss-dashboard-storage-migration-modal .rss-dashboard-modal-buttons {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.rss-dashboard-storage-migration-modal .rss-dashboard-modal-buttons button {
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

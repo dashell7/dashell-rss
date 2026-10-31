@@ -1,5 +1,4 @@
 import type { Feed, FeedItem, Tag } from "../types/types";
-import { DEFAULT_TAG_COLOR } from "../utils/tag-colors";
 import { isOpenableHttpUrl } from "../utils/url-utils";
 
 /**
@@ -238,7 +237,7 @@ function resolveLabelTags(
 
     let newTag = newTagsByLowerName.get(lowerName);
     if (!newTag) {
-      newTag = { name, color: DEFAULT_TAG_COLOR };
+      newTag = { name };
       newTagsByLowerName.set(lowerName, newTag);
     }
     tags.push(newTag);

@@ -124,6 +124,23 @@ describe("Shard storage v2 article state (characterization, #465)", () => {
       expect(written._syncPad).toEqual(expect.stringContaining("sync-size-anchor"));
     });
 
+    it("persists a page cover under feed-qualified identity and hydrates it without changing article state", async () => {
+      const first = makeItem({ coverImage: "https://img.example.com/a.jpg", coverImageFromPage: true, starred: true, tags: [{ name: "Inherited" }] });
+      const second = makeItem({ coverImage: "https://img.example.com/b.jpg", coverImageFromPage: true });
+      const settings = settingsFor("vault-shards-v2", [makeFeed("a", [first]), makeFeed("b", [second])]);
+      const repo = new FeedStorageRepository(app);
+      await repo.saveUserStateFromFeeds(settings);
+      const states = (await readJson(app)).states as Record<string, { pageCoverImage: string }>;
+      expect(states["a:guid-1"].pageCoverImage).toBe(first.coverImage);
+      expect(states["b:guid-1"].pageCoverImage).toBe(second.coverImage);
+      await writeShard(app, "a", [makeItem()]);
+      await writeShard(app, "b", [makeItem()]);
+      const reloaded = settingsFor("vault-shards-v2", [makeFeed("a", []), makeFeed("b", [])]);
+      await new FeedStorageRepository(app).hydrateSettings(reloaded);
+      expect(reloaded.feeds[0].items[0]).toMatchObject({ coverImage: first.coverImage, coverImageFromPage: true, starred: true, tags: [{ name: "Inherited" }] });
+      expect(reloaded.feeds[1].items[0]).toMatchObject({ coverImage: second.coverImage, coverImageFromPage: true, starred: false });
+    });
+
     it("gets a new sync nonce on every save, even when the state is unchanged", async () => {
       const repository = new FeedStorageRepository(app);
       const settings = settingsFor("vault-shards-v2", [

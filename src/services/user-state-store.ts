@@ -31,6 +31,10 @@ function feedIdOfStateKey(key: string): string {
  * hydrating and when adopting disk state for an item that missed hydration.
  */
 function applyPersistedState(item: FeedItem, state: ArticleUserState): void {
+  if (state.pageCoverImage) {
+    item.coverImage = state.pageCoverImage;
+    item.coverImageFromPage = true;
+  }
   item.read = state.read ?? false;
   item.starred = state.starred ?? false;
   item.readLaterAt = state.readLaterAt;
@@ -400,7 +404,7 @@ export class UserStateStore {
     }
 
     const hasSignal = Boolean(
-      item.read || item.starred || (item.tags && item.tags.length > 0) || item.saved || item.playbackProgress || item.readLaterAt || item.lastOpenedAt,
+      item.read || item.starred || (item.tags && item.tags.length > 0) || item.saved || item.playbackProgress || item.readLaterAt || item.lastOpenedAt || item.coverImageFromPage,
     );
     if (!hasSignal && !baseline) {
       return;
@@ -414,6 +418,7 @@ export class UserStateStore {
       lastOpenedAt: item.lastOpenedAt,
     };
     if (item.tags && item.tags.length > 0) state.tags = cloneJson(item.tags);
+    if (item.coverImageFromPage) state.pageCoverImage = item.coverImage;
     if (item.savedFilePath) state.savedFilePath = item.savedFilePath;
     if (item.playbackProgress) state.playbackProgress = cloneJson(item.playbackProgress);
     states[key] = state;

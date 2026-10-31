@@ -227,6 +227,7 @@ export function stripDuplicateLeadContentFromDocument(
   doc: Document,
   feedDescriptionHtml?: string,
 ): void {
+  if (doc.body?.querySelector("article[data-rss-bluesky-post]")) return;
   const normalizedDescription = normalizeComparableText(
     feedDescriptionHtml || "",
   );
@@ -278,6 +279,7 @@ export function stripDuplicateLeadContentFromDocument(
 
 export function stripLeadMediaBeforeContent(doc: Document): void {
   if (!doc.body) return;
+  if (doc.body?.querySelector("article[data-rss-bluesky-post]")) return;
   const blocks = Array.from(doc.body.children) as HTMLElement[];
   const firstSubstantialIndex = blocks.findIndex(
     (block) => getNormalizedBlockText(block).length >= 120,
@@ -458,7 +460,10 @@ export function normalizeImageSourceKey(rawUrl: string): string {
 
 export function hasMeaningfulArticleContent(html: string | null): boolean {
   if (!html) return false;
-  const text =
-    new DOMParser().parseFromString(html, "text/html").body.textContent || "";
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  // A structured social post can be image-only. This is a display heuristic;
+  // the normal sanitizer remains responsible for every rendered node.
+  if (doc.body.querySelector("article[data-rss-bluesky-post] img[src], article[data-rss-bluesky-post] a[href]")) return true;
+  const text = doc.body.textContent || "";
   return text.trim().length > 200;
 }

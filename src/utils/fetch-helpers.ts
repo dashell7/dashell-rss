@@ -1,3 +1,4 @@
+import { extractBlueskyPost } from "./bluesky-post-page";
 import { Readability } from "@mozilla/readability";
 import {
   robustFetch,
@@ -36,6 +37,7 @@ export type FullArticleFetchFailureType = "none" | "restricted" | "network";
 export interface FullArticleFetchResult {
   content: string;
   failureType: FullArticleFetchFailureType;
+  coverImage?: string;
 }
 
 function isRestrictedStatus(status: number | undefined): boolean {
@@ -83,13 +85,17 @@ export async function fetchAndParse(
   });
   if (!html) return "";
 
+  const post = extractBlueskyPost(html, url);
+  if (post) return post.content;
   const withMeta = ensureUtf8Meta(html);
   const doc = new DOMParser().parseFromString(withMeta, "text/html");
   const article = new Readability(doc).parse();
   return article?.content ?? "";
 }
 
-function parseArticleContent(html: string): string {
+function parseArticleContent(html: string, url: string): string {
+  const post = extractBlueskyPost(html, url);
+  if (post) return post.content;
   const withMeta = ensureUtf8Meta(html);
   const doc = new DOMParser().parseFromString(withMeta, "text/html");
   const article = new Readability(doc).parse();
@@ -140,6 +146,8 @@ export async function fetchWithProxyFallbackDetailed(
         headers: DEFAULT_HEADERS,
       });
       const directHtml = directResponse.text;
+      const post = !isRestrictedStatus(directResponse.status) && extractBlueskyPost(directHtml, url);
+      if (post) return { content: post.content, failureType: "none", coverImage: post.coverImage };
       const directBlocked =
         isBlockedResponse(directHtml) ||
         isRestrictedStatus(directResponse.status);
@@ -149,7 +157,7 @@ export async function fetchWithProxyFallbackDetailed(
           `[RSS Dashboard] Direct fetch succeeded for ${url} (${directHtml.length} chars).`,
         );
         return {
-          content: parseArticleContent(directHtml),
+          content: parseArticleContent(directHtml, url),
           failureType: "none",
         };
       }
@@ -191,6 +199,8 @@ export async function fetchWithProxyFallbackDetailed(
       headers: DEFAULT_HEADERS,
     });
     const proxyHtml = proxyResponse.text;
+    const post = !isRestrictedStatus(proxyResponse.status) && extractBlueskyPost(proxyHtml, url);
+    if (post) return { content: post.content, failureType: "none", coverImage: post.coverImage };
 
     if (
       !proxyHtml ||
@@ -213,7 +223,7 @@ export async function fetchWithProxyFallbackDetailed(
     console.debug(
       `[RSS Dashboard] Proxy fetch succeeded for ${url} (${proxyHtml.length} chars).`,
     );
-    return { content: parseArticleContent(proxyHtml), failureType: "none" };
+    return { content: parseArticleContent(proxyHtml, url), failureType: "none" };
   } catch (e: unknown) {
     const { message: msg, status, restricted } = describeFetchError(e);
     const logMessage = restricted

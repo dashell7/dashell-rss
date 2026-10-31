@@ -46,6 +46,19 @@ Qiaomu AI RSS release. The combined derivative is GPL-3.0-only; see LICENSE.
   bundled or implied by this adaptation. Source-provided translation and
   rewrite variants are not an on-demand AI service.
 
+## RSS Dashboard 2.8.0-beta.2 adaptation
+
+RSS Dashboard 2.8.0-beta.2 selective adaptation (2026-10-31):
+- Source: amatya-aditya/obsidian-rss-dashboard, commit
+  b9b812c80ed3959e0714280c742dca28bca93bf3; GPL-3.0-only.
+- Preserves upstream contributor notices and license. Adapted tag palettes,
+  appearance/default controls, table conversion, UTF-8 filenames, template
+  images, Twitch recognition/player URLs, Bluesky page extraction, swipe
+  gestures, bulk cover control and matching UI fixes.
+- Dashell adaptations reuse existing transport, article user-state, storage
+  shards, learning materials and media players. No new runtime libraries.
+- Details and exclusions: docs/DASHELL-RSS-DASHBOARD-280-BETA2.md.
+
 ## Added bundled libraries
 
 - DOMPurify 3.4.16: Apache-2.0 selected from its dual license

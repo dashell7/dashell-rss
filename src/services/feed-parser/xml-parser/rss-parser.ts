@@ -1,3 +1,4 @@
+import { stripTitleFormattingTags } from "./xml-html-utils";
 import type { ParsedFeed, ParsedItem } from "../types.js";
 
 export interface RssParserDeps {
@@ -53,7 +54,7 @@ export function parseRSS(doc: Document, deps: RssParserDeps): ParsedFeed {
   );
 
   itemElements.forEach((item) => {
-    const itemTitle = deps.getTextContent(item, "title");
+    const itemTitle = stripTitleFormattingTags(deps.getTextContent(item, "title"));
     let itemLink = deps.getTextContent(item, "link");
 
     itemLink = deps.transformSageUrl(itemLink);
@@ -223,7 +224,7 @@ export function parseRSS1(doc: Document, deps: RssParserDeps): ParsedFeed {
       deps.getTextContent(item, "prism:url");
 
     const itemTitle =
-      deps.getTextContent(item, "title") ||
+      stripTitleFormattingTags(deps.getTextContent(item, "title")) ||
       deps.getTextContent(item, "dc:title");
     let itemLink =
       deps.getTextContent(item, "link") ||

@@ -96,7 +96,7 @@
 }
 
 .rss-dashboard-feed-view .rss-dashboard-article-title {
-  font-size: 1.5rem;
+  font-size: calc(1.5rem * var(--rss-dashboard-title-scale, 1));
   font-weight: 700;
   line-height: 1.3;
   color: var(--text-normal);
@@ -157,7 +157,7 @@
   }
 
   .rss-dashboard-feed-view .rss-dashboard-article-title {
-    font-size: 1.25rem;
+    font-size: calc(1.25rem * var(--rss-dashboard-title-scale, 1));
   }
 
   .rss-dashboard-feed-hero-image {

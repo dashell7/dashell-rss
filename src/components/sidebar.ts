@@ -1,3 +1,4 @@
+import { applyTagAppearance } from "../utils/tag-colors";
 import {
   Menu,
   MenuItem,
@@ -645,7 +646,7 @@ export class Sidebar {
       tagCheckbox.checked = selected;
 
       const dot = row.createDiv({ cls: "rss-dashboard-tag-color-dot" });
-      dot.style.backgroundColor = tag.color;
+      applyTagAppearance(dot, tag, this.plugin.settings);
 
       row.createSpan({
         text: tag.name,

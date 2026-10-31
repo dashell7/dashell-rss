@@ -1,3 +1,4 @@
+import type { FetchAllCoversState } from "./article-list/utils/cover-image-bulk";
 import { setIcon, setTooltip } from "obsidian";
 import { ArticleGroupByOption, RssDashboardSettings } from "../types/types";
 import { TABLET_LAYOUT_MAX_WIDTH } from "../utils/platform-utils";
@@ -11,6 +12,8 @@ interface ArticleHeaderMenuController {
 }
 
 export interface ArticleHeaderCallbacks {
+  onFetchAllCovers?: () => void;
+  onGetCoversState?: () => FetchAllCoversState;
   onToggleSidebar: () => void;
   onSearch: (query: string) => void;
   onSortChange: (value: "newest" | "oldest") => void;
@@ -38,6 +41,7 @@ type MenuOptionEntries = Array<[label: string, value: string]>;
  * - View style selector (List, Card, Feed)
  */
 export class ArticleHeader {
+  private coversButton: HTMLButtonElement | null = null;
   private container: HTMLElement;
   private settings: RssDashboardSettings;
   private title: string;
@@ -83,6 +87,15 @@ export class ArticleHeader {
     this.tagFilters = tagFilters;
     this.filterLogic = filterLogic;
     this.callbacks = callbacks;
+  }
+
+  public updateCoversButton(state: FetchAllCoversState): void {
+    const button = this.coversButton;
+    if (!button) return;
+    button.disabled = state === "disabled" || state === "stopping";
+    const text = state === "running" ? "Stop fetching covers" : state === "stopping" ? "Stopping cover fetch" : "Fetch all page covers";
+    button.setAttribute("aria-label", text);
+    button.textContent = text;
   }
 
   public updateFilters(
@@ -197,6 +210,12 @@ export class ArticleHeader {
       cls: "rss-dashboard-header-right",
     });
 
+    this.coversButton = null;
+    if ((this.settings.display.showFetchAllCovers ?? true) && this.settings.display.showCoverImage && this.callbacks.onFetchAllCovers) {
+      this.coversButton = rightSection.createEl("button", { cls: "rss-dashboard-fetch-all-covers" });
+      this.coversButton.addEventListener("click", () => this.callbacks.onFetchAllCovers?.());
+      this.updateCoversButton(this.callbacks.onGetCoversState?.() ?? "idle");
+    }
     const mobileFilterBtn = rightSection.createEl("button", {
       cls: "rss-dashboard-mobile-filter-button rss-dashboard-filter-trigger clickable-icon",
       attr: { "aria-label": "Filters", role: "button", tabindex: "0" },

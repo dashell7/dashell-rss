@@ -6,7 +6,7 @@ export function articleFileNames(title: string): Record<Mode, string> {
   const characters = Array.from(sanitizeFilename(title))
     .filter(char => {
       const code = char.codePointAt(0)!;
-      // The shared 100-character sanitizer can cut a surrogate pair in half.
+      // Reject control characters and malformed UTF-16 before writing vault paths.
       return code >= 32 && code !== 127 && (code < 0xd800 || code > 0xdfff);
     });
   // Leave room for suffixes on filesystems that limit names by UTF-8 bytes.

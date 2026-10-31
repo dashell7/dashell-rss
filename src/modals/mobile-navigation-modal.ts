@@ -1,3 +1,4 @@
+import { SwipeNavigator, areSwipePanelsEnabled } from "../utils/swipe-gesture";
 import { App, Modal, Platform, setIcon, setTooltip } from "obsidian";
 import {
   Sidebar,
@@ -8,6 +9,7 @@ import type RssDashboardPlugin from "../../main";
 import { RssDashboardSettings } from "../types/types";
 
 export class MobileNavigationModal extends Modal {
+  private swipe: SwipeNavigator | null = null;
   private sidebar!: Sidebar;
   private sidebarWrapper!: HTMLElement;
   private refreshIntervalId: number | null = null;
@@ -26,6 +28,11 @@ export class MobileNavigationModal extends Modal {
     const { contentEl } = this;
 
     contentEl.empty();
+    this.swipe = new SwipeNavigator(contentEl, {
+      isEnabled: () => areSwipePanelsEnabled(this.settings, contentEl.win.innerWidth),
+      onSwipe: direction => { if (direction === "left") this.close(); },
+    });
+    this.swipe.sync();
     this.modalEl.addClass("rss-mobile-navigation-modal");
     this.modalEl.classList.remove(
       "rss-mobile-platform-ios",
@@ -162,6 +169,8 @@ export class MobileNavigationModal extends Modal {
   }
 
   onClose() {
+    this.swipe?.destroy();
+    this.swipe = null;
     if (this.refreshIntervalId !== null) {
       window.clearInterval(this.refreshIntervalId);
       this.refreshIntervalId = null;

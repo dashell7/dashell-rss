@@ -20,6 +20,7 @@ export interface FeedItem {
   feedTitle: string;
   feedUrl: string;
   coverImage: string;
+  coverImageFromPage?: boolean;
   fallbackIconUrl?: string;
 
   mediaType?: "article" | "video" | "podcast";
@@ -238,7 +239,8 @@ export interface FeedIngestionResult {
 
 export interface Tag {
   name: string;
-  color: string;
+  color?: string;
+  textColor?: string;
 }
 
 export interface Folder {
@@ -270,6 +272,7 @@ export type PodcastTheme =
   | "tokyonight";
 
 export interface MediaSettings {
+  videoFocusMode?: boolean;
   autoTagVideos: boolean;
   rememberPlaybackProgress: boolean;
   defaultMastodonFolder: string;
@@ -315,6 +318,10 @@ export const IMAGE_CACHE_LIMIT_MIN_MIB = 1;
 export const IMAGE_CACHE_LIMIT_MAX_MIB = 1_024;
 
 export interface DisplaySettings {
+  swipeBetweenPanels?: boolean;
+  showFetchAllCovers?: boolean;
+  cardPressAnimation?: boolean;
+  articleTitleScalePct?: number;
   showCoverImage: boolean;
   allowImageCaching: boolean;
   imageCacheLimitMiB: number;
@@ -455,6 +462,7 @@ export type FeedStorageMode =
   | "vault-shards-v2";
 
 export interface ArticleUserState {
+  pageCoverImage?: string;
   read?: boolean;
   starred?: boolean;
   readLaterAt?: number;
@@ -567,6 +575,8 @@ export interface RssDashboardSettings {
   readArticlesPageSize: number;
   savedArticlesPageSize: number;
   starredArticlesPageSize: number;
+  defaultTagColor?: string;
+  defaultTagTextColor?: string;
   availableTags: Tag[];
   folderSortOrder?: {
     by: "name" | "created" | "modified" | "custom";

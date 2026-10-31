@@ -1,3 +1,4 @@
+import { applyTagAppearance } from "../../utils/tag-colors";
 /**
  * Display Settings Tab renderer.
  *
@@ -124,6 +125,30 @@ export function renderDisplaySettingsTab(
           await rerenderActiveDashboardView();
         }),
     );
+
+  new Setting(containerEl).setName("Fetch all page covers").setDesc("Show a button to fetch covers for the articles on the current page. Press again to stop.")
+    .addToggle(toggle => toggle.setValue(plugin.settings.display.showFetchAllCovers ?? true).onChange(async value => {
+      plugin.settings.display.showFetchAllCovers = value; await plugin.saveSettings(); await rerenderActiveDashboardView();
+    }));
+  new Setting(containerEl).setName("Swipe between panels").setDesc("On mobile, swipe right for navigation or back to the list; swipe left to return to the selected article.")
+    .addToggle(toggle => toggle.setValue(plugin.settings.display.swipeBetweenPanels ?? false).onChange(async value => {
+      plugin.settings.display.swipeBetweenPanels = value;
+      await plugin.saveSettings(); await rerenderActiveDashboardView();
+    }));
+  new Setting(containerEl).setName("Card press animation")
+    .addToggle(toggle => toggle.setValue(plugin.settings.display.cardPressAnimation ?? true).onChange(async value => {
+      plugin.settings.display.cardPressAnimation = value; await plugin.saveSettings(); await rerenderActiveDashboardView();
+    }));
+  const titleSize = new Setting(containerEl).setName("Article title size");
+  titleSize.addSlider(slider => {
+    slider.sliderEl.setAttribute("aria-label", "Article title size");
+    slider.sliderEl.setAttribute("aria-valuetext", `${plugin.settings.display.articleTitleScalePct ?? 100}%`);
+    return slider.setLimits(50, 200, 5).setValue(plugin.settings.display.articleTitleScalePct ?? 100).onChange(async value => {
+    slider.sliderEl.setAttribute("aria-valuetext", `${value}%`);
+    plugin.settings.display.articleTitleScalePct = value; await plugin.saveSettings(); await rerenderActiveDashboardView();
+  }); }).addButton(button => button.setButtonText("Reset").onClick(async () => {
+    plugin.settings.display.articleTitleScalePct = 100; await plugin.saveSettings(); await rerenderActiveDashboardView(); onRefresh();
+  }));
 
   new Setting(containerEl)
     .setName("Allow image caching")
@@ -722,7 +747,7 @@ export function renderDisplaySettingsTab(
             const colorDot = item.createDiv({
               cls: "rss-dashboard-tag-color-dot",
             });
-            colorDot.style.setProperty("--tag-color", tag.color);
+            applyTagAppearance(colorDot, tag, plugin.settings);
 
             item.createDiv({
               cls: "rss-dashboard-filter-menu-text",

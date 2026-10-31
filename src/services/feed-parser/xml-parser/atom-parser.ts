@@ -1,5 +1,5 @@
 import type { ParsedFeed, ParsedItem } from "../types.js";
-import { sanitizeCDATA } from "./xml-html-utils";
+import { sanitizeCDATA, stripTitleFormattingTags } from "./xml-html-utils";
 
 const ATOM_NAMESPACE = "http://www.w3.org/2005/Atom";
 const MEDIA_NAMESPACE = "http://search.yahoo.com/mrss/";
@@ -53,7 +53,7 @@ function parseEntry(entry: Element, deps: AtomParserDeps): ParsedItem {
   const link = deps.transformSageUrl(getAtomEntryLink(entry));
   const description = text(entry, "summary") || media(entry, "description")?.textContent || "";
   return {
-    title: text(entry, "title"), link, description,
+    title: stripTitleFormattingTags(text(entry, "title")), link, description,
     pubDate: text(entry, "published") || text(entry, "updated"),
     guid: text(entry, "id") || link, author: author(entry),
     content: content(entry) || description,

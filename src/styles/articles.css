@@ -283,7 +283,7 @@
 
 .rss-dashboard-article-duration {
   background-color: #8e44ad;
-  color: #fff;
+  color: var(--tag-text-color, #fff);
   padding: 2px 6px;
   border-radius: 3px;
   font-size: 12px;
@@ -534,7 +534,7 @@ body .rss-dashboard-tag-inline-button svg {
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 0.95em;
-  color: #fff;
+  color: var(--tag-text-color, #fff);
   background: var(--tag-color, var(--interactive-accent));
   font-weight: 500;
 }
@@ -544,7 +544,7 @@ body .rss-dashboard-tag-inline-button svg {
   padding: 1px 6px;
   border-radius: 3px;
   font-size: 11px;
-  color: #fff;
+  color: var(--tag-text-color, #fff);
   cursor: pointer;
   flex-grow: 1;
   background-color: var(--tag-color, var(--interactive-accent));
@@ -733,5 +733,26 @@ body .rss-dashboard-tag-action-button svg {
   .rss-dashboard-article-feed-icon-img {
     width: 16px;
     height: 16px;
+  }
+}
+
+/* Dashboard 2.8 display controls respect the user's motion preference. */
+.rss-dashboard-card-press-enabled .rss-dashboard-article-card:active {
+  transform: scale(0.985);
+}
+@media (prefers-reduced-motion: reduce) {
+  .rss-dashboard-card-press-enabled .rss-dashboard-article-card:active { transform: none; }
+}
+.rss-dashboard-tag-badge, .rss-reader-tag {
+  color: var(--tag-text-color, #fff);
+}
+.rss-dashboard-tag-default-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.rss-dashboard-tag-modal-form { flex-wrap: wrap; min-width: 0; }
+.rss-dashboard-fetch-all-covers { white-space: normal; }
+
+.rss-dashboard-tag-label, .rss-dashboard-tag, .podcast-tag { color: var(--tag-text-color, #fff); }
+@media (max-width: 768px) {
+  .rss-dashboard-viewing-filter-stats-label {
+    display: none;
   }
 }

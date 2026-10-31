@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { englishDateLocale } from '../helpers/date-locale';
+import { englishDateLocale } from "../helpers/date-locale";
 import { App, TFile, moment } from "obsidian";
 import type { ArticleSavingSettings, FeedItem } from "../../../src/types/types";
 import {
@@ -53,15 +53,15 @@ beforeEach(() => {
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("sanitizeFilename", () => {
-  it("removes invalid characters and caps long titles at 100 characters", () => {
-    const title = `  ${"a".repeat(98)} /  zzz`;
+  it("removes invalid characters and caps long titles at 245 characters", () => {
+    const title = `  ${"a".repeat(243)} /  zzz`;
 
-    expect(sanitizeFilename(title)).toBe(
-      `${"a".repeat(98)} z`,
-    );
+    expect(sanitizeFilename(title)).toBe(`${"a".repeat(243)} z`);
   });
 
   it("falls back to a safe filename when sanitization removes everything", () => {
@@ -111,13 +111,17 @@ summary: "{{summary}}"
 ---`,
     });
     const saver = new ArticleSaver(app, settings);
-    const item = createItem({ summary: 'A "quoted" summary\nwith another line.' });
+    const item = createItem({
+      summary: 'A "quoted" summary\nwith another line.',
+    });
 
     const createSpy = vi.spyOn(app.vault, "create");
     await saver.saveArticle(item, undefined, undefined, "BODY");
 
     const written = createSpy.mock.calls[0][1];
-    expect(written).toContain('summary: "A \\"quoted\\" summary\\nwith another line."');
+    expect(written).toContain(
+      'summary: "A \\"quoted\\" summary\\nwith another line."',
+    );
     expect(written).not.toContain("{{summary}}");
   });
 
@@ -829,8 +833,7 @@ describe("ArticleSaver - Math Rendering", () => {
       includeFrontmatter: false,
     });
     const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
-    const formulaUrl =
-      "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
+    const formulaUrl = "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
 
     vi.spyOn(
       fetchHelpers,
@@ -867,7 +870,8 @@ describe("ArticleSaver - Math Rendering", () => {
       fetchHelpers,
       "fetchWithProxyFallbackDetailed",
     ).mockResolvedValueOnce({
-      content: '<p>Inline <span class="math" data-math="$a_1$"><span>[RENDERED]</span></span> and display <span class="math" data-math="$$b_2$$"><span>[RENDERED]</span></span></p>',
+      content:
+        '<p>Inline <span class="math" data-math="$a_1$"><span>[RENDERED]</span></span> and display <span class="math" data-math="$$b_2$$"><span>[RENDERED]</span></span></p>',
       failureType: "none",
     });
 
@@ -1405,6 +1409,70 @@ describe("ArticleSaver saved file lookups", () => {
 });
 
 describe("ArticleSaver.{{image}} template variable", () => {
+  it("preserves a raw Markdown code example that contains the template image URL", async () => {
+    const app = App.createMock();
+    const hero = "https://example.com/distinctive-photo.jpg";
+    const raw = '```html\n<img src="' + hero + '">\n```\n\n$x^2$';
+    const saver = new ArticleSaver(
+      app,
+      createSettings({ defaultTemplate: "![]({{image}})\n\n{{content}}" }),
+    );
+    const file = await saver.saveArticle(
+      createItem({ coverImage: hero }),
+      undefined,
+      undefined,
+      raw,
+    );
+    expect(await app.vault.read(file!)).toBe(`![](${hero})\n\n${raw}`);
+  });
+  it.each([false, true])(
+    "deduplicates a matching non-leading image only when the template places it in the body (full: %s)",
+    async (full) => {
+      const app = App.createMock();
+      const hero = "https://example.com/distinctive-photo.jpg";
+      const html = `<p>Before</p><img src="https://example.com/other.png"><p>Middle</p><img src="${hero}"><pre><code>const value = 3 &lt; 4;</code></pre><p>After $x^2$</p>`;
+      vi.spyOn(
+        fetchHelpers,
+        "fetchWithProxyFallbackDetailed",
+      ).mockResolvedValue({ content: html, failureType: "none" });
+      const saver = new ArticleSaver(
+        app,
+        createSettings({ defaultTemplate: "![]({{image}})\n\n{{content}}" }),
+      );
+      const item = createItem({
+        coverImage: hero,
+        content: html,
+        description: html,
+      });
+      const file = full
+        ? await saver.saveArticleWithFullContent(item)
+        : await saver.saveArticle(item);
+      const written = await app.vault.read(file!);
+      expect(written.split(hero)).toHaveLength(2);
+      expect(written).toContain("https://example.com/other.png");
+      expect(written).toContain(
+        full ? "const value = 3 < 4;" : "const value = 3 &lt; 4;",
+      );
+      expect(written).toContain("$x^2$");
+    },
+  );
+  it("keeps a body image when image is used only in frontmatter", async () => {
+    const app = App.createMock();
+    const hero = "https://example.com/distinctive-photo.jpg";
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: '---\ncover: "{{image}}"\n---\n{{content}}',
+      }),
+    );
+    const file = await saver.saveArticle(
+      createItem({
+        coverImage: hero,
+        content: `<p>Body</p><img src="${hero}">`,
+      }),
+    );
+    expect((await app.vault.read(file!)).split(hero)).toHaveLength(3);
+  });
   it("replaces {{image}} in default template with coverImage when present", async () => {
     const app = App.createMock();
     const imageUrl = "https://example.com/cover.jpg";

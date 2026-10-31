@@ -1,3 +1,4 @@
+import { twitchChannelFor, twitchVodIdFor } from "./twitch-embed";
 import type { Feed, FeedItem } from "../types/types";
 import { MediaService } from "../services/media-service";
 import {
@@ -62,12 +63,14 @@ export function resolveReaderMediaRoute(item: FeedItem): ReaderMediaRoute {
     if (vid) item.videoId = vid;
   }
 
+  if (twitchChannelFor(item) || twitchVodIdFor(item)) return "video";
   if (item.mediaType === "video" && item.videoId) {
     return "video";
   }
   if (item.mediaType === "video" && item.videoUrl) {
     return "video-podcast";
   }
+  item.audioUrl = resolvePodcastAudio(item);
   if (
     item.mediaType === "podcast" &&
     (item.audioUrl || MediaService.extractPodcastAudio(item.description))
@@ -306,4 +309,9 @@ function dropLeadImageRepeatingHero(
   ) {
     host.removeLeadImageElement(firstImg);
   }
+}
+
+function resolvePodcastAudio(item: FeedItem): string | undefined {
+  if (item.mediaType !== "podcast") return item.audioUrl;
+  return item.audioUrl?.trim() || item.enclosure?.url?.trim() || item.audioUrl;
 }

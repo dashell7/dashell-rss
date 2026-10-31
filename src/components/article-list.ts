@@ -1,3 +1,6 @@
+import { fetchPageCover } from "../services/page-cover-fetch";
+import { selectBulkCoverImageTargets } from "./article-list/utils/cover-image-bulk";
+import { FetchAllCoversController } from "./article-list/utils/fetch-all-covers-controller";
 import { type App, Notice, setIcon, setTooltip } from "obsidian";
 import {
   ArticleGroupByOption,
@@ -45,7 +48,7 @@ interface ArticleListCallbacks {
     article: FeedItem,
     updates: Partial<FeedItem>,
     shouldRerender?: boolean,
-  ) => void;
+  ) => Promise<void> | void;
   onArticleSave?: (article: FeedItem) => Promise<void> | void;
   onOpenSavedArticle?: (article: FeedItem) => Promise<void> | void;
   onOpenInReaderView?: (article: FeedItem) => void;
@@ -73,6 +76,8 @@ interface ArticleListCallbacks {
 }
 
 export class ArticleList {
+  private disposed = false;
+  private covers: FetchAllCoversController;
   private container: HTMLElement;
   private settings: RssDashboardSettings;
   private title: string;
@@ -145,6 +150,27 @@ export class ArticleList {
     this.filterLogic = filterLogic;
     this.currentFeedUrl = currentFeedUrl || null;
     this.showFeedSource = showFeedSource;
+    this.covers = new FetchAllCoversController({
+      getTargets: () =>
+        selectBulkCoverImageTargets(this.articles, this.settings.display),
+      fetchOne: async (article) => {
+        const url = await fetchPageCover(article.link);
+        if (!url || this.disposed) return false;
+        const stillExists = this.settings.feeds.some(
+          (feed) =>
+            feed.url === article.feedUrl &&
+            feed.items.some((item) => item.guid === article.guid),
+        );
+        if (!stillExists) return false;
+        const updates = { coverImage: url, coverImageFromPage: true };
+        await this.callbacks.onArticleUpdate(article, updates, false);
+        Object.assign(article, updates);
+        if (!this.disposed) this.render();
+        return true;
+      },
+      onStateChange: () =>
+        this.header?.updateCoversButton(this.covers.getState()),
+    });
 
     if (this.settings.highlights?.enabled) {
       this.highlightService = new HighlightService(this.settings.highlights);
@@ -163,6 +189,8 @@ export class ArticleList {
       this.tagFilters,
       this.filterLogic,
       {
+        onFetchAllCovers: () => this.covers.toggle(),
+        onGetCoversState: () => this.covers.getState(),
         onToggleSidebar: () => this.callbacks.onToggleSidebar(),
         onSearch: (q) => {
           this.articleSearchQuery = q;
@@ -204,6 +232,8 @@ export class ArticleList {
   }
 
   public destroy(): void {
+    this.disposed = true;
+    this.covers.destroy();
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
@@ -341,7 +371,7 @@ export class ArticleList {
 
     this.cardLayoutFrame = window.requestAnimationFrame(() => {
       this.cardLayoutFrame = null;
-      layoutCardTagRows(root, this.articles);
+      layoutCardTagRows(root, this.articles, this.settings);
     });
   }
 
@@ -360,11 +390,11 @@ export class ArticleList {
       return;
     }
 
-    renderSingleRowCardTagChips(tagsContainer, article.tags);
+    renderSingleRowCardTagChips(tagsContainer, article.tags, this.settings);
   }
 
   private renderTagChips(container: HTMLElement, tags: Tag[]): void {
-    renderTagChips(container, tags);
+    renderTagChips(container, tags, this.settings);
   }
 
   private ensureCardTagsContainer(articleEl: HTMLElement): HTMLElement | null {
@@ -454,6 +484,20 @@ export class ArticleList {
   }
 
   render(): void {
+    if (this.disposed) return;
+    this.container.style.setProperty(
+      "--rss-dashboard-title-scale",
+      String(
+        Math.max(
+          50,
+          Math.min(200, this.settings.display.articleTitleScalePct ?? 100),
+        ) / 100,
+      ),
+    );
+    this.container.toggleClass(
+      "rss-dashboard-card-press-enabled",
+      this.settings.display.cardPressAnimation ?? true,
+    );
     const scrollPosition = this.container.scrollTop;
 
     this.container.empty();
@@ -849,12 +893,13 @@ export class ArticleList {
       );
     const rows: Array<Array<{ guid: string; rect: DOMRect }>> = [];
     positionedCards.forEach((entry) => {
-      const existingRow = rows.find(
-        (row) => {
-          const rowTop = row[0]?.rect.top;
-          return rowTop !== undefined && Math.abs(rowTop - entry.rect.top) <= rowTolerance;
-        },
-      );
+      const existingRow = rows.find((row) => {
+        const rowTop = row[0]?.rect.top;
+        return (
+          rowTop !== undefined &&
+          Math.abs(rowTop - entry.rect.top) <= rowTolerance
+        );
+      });
       if (existingRow) {
         existingRow.push(entry);
         return;
@@ -884,13 +929,13 @@ export class ArticleList {
 
     if (direction === "left") {
       return currentColumnIndex > 0
-        ? currentRow[currentColumnIndex - 1]?.guid ?? null
+        ? (currentRow[currentColumnIndex - 1]?.guid ?? null)
         : null;
     }
 
     if (direction === "right") {
       return currentColumnIndex < currentRow.length - 1
-        ? currentRow[currentColumnIndex + 1]?.guid ?? null
+        ? (currentRow[currentColumnIndex + 1]?.guid ?? null)
         : null;
     }
 
@@ -1161,7 +1206,7 @@ export class ArticleList {
         (articleEl.classList.contains("rss-dashboard-feed-item") &&
           isFeedTagStrip)
       ) {
-        renderSingleRowCardTagChips(container, tags);
+        renderSingleRowCardTagChips(container, tags, this.settings);
         return;
       }
 
@@ -1441,7 +1486,7 @@ export class ArticleList {
       // it, and tag edits resync only the objects listed there.
       this.updateArticleInPlace(article);
 
-      this.callbacks.onArticleUpdate(
+      void this.callbacks.onArticleUpdate(
         article,
         { tags: [...article.tags] },
         false,

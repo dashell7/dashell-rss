@@ -24,7 +24,7 @@ type ReaderViewHarness = {
   contentEl: HTMLElement;
   readingContainer: HTMLElement;
   fetchFullArticleContent: ReturnType<typeof vi.fn>;
-  buildReaderSaveMarkdown(item: FeedItem): string;
+  buildReaderSaveMarkdown(item: FeedItem, template?: string): string;
 };
 
 function getHarness(view: ReaderView): ReaderViewHarness {
@@ -79,9 +79,49 @@ describe("ReaderView Image Duplication", () => {
     vi.clearAllMocks();
   });
 
+  it("preserves table columns and escapes text and code pipes when saving reader HTML", () => {
+    const item = {
+      title: "Table reader",
+      description:
+        "<table><tr><th>Column</th><th>Value</th></tr><tr><td>A|B</td><td><code>x|y</code></td></tr></table>",
+      guid: "table-reader",
+      link: "https://example.com/table",
+    } as FeedItem;
+    const markdown = getHarness(readerView).buildReaderSaveMarkdown(item);
+    expect(markdown).toContain("| Column | Value |");
+    expect(markdown).toContain("| --- | --- |");
+    expect(markdown).toContain("| A\\|B | `x\\|y` |");
+  });
+
+  it.each([false, true])(
+    "leaves the hero to the chosen save template before converting reader HTML (custom: %s)",
+    (custom) => {
+      const url = "https://example.com/distinctive-photo.jpg";
+      const html = `<p>Reader body</p><img src="${url}"><pre><code>const value = 3 &lt; 4;</code></pre>`;
+      const template = "![]({{image}})\n\n{{content}}";
+      mockSettings.articleSaving = {
+        ...mockSettings.articleSaving,
+        defaultTemplate: custom ? "{{content}}" : template,
+      };
+      const item = {
+        title: "Template reader",
+        description: html,
+        guid: "template-reader",
+        link: "https://example.com/a",
+        coverImage: url,
+      } as FeedItem;
+      const markdown = getHarness(readerView).buildReaderSaveMarkdown(
+        item,
+        custom ? template : undefined,
+      );
+      expect(markdown).not.toContain(url);
+      expect(markdown).toContain("const value = 3 < 4;");
+      expect(item.description).toBe(html);
+    },
+  );
+
   it("renders WordPress native math and promotes a later photo to hero", async () => {
-    const formulaUrl =
-      "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
+    const formulaUrl = "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
     const photoUrl = "https://example.com/article-photo.jpg";
     const item: FeedItem = {
       title: "WordPress math article",
@@ -120,9 +160,9 @@ describe("ReaderView Image Duplication", () => {
 
     expect(heroImg?.getAttribute("src")).toBe(photoUrl);
     expect(body?.querySelector("img.latex")).toBeNull();
-    expect(body?.querySelector("span.math-inline")?.getAttribute("data-math")).toBe(
-      String.raw`\({x}\)`,
-    );
+    expect(
+      body?.querySelector("span.math-inline")?.getAttribute("data-math"),
+    ).toBe(String.raw`\({x}\)`);
     expect(body?.querySelector(`img[src="${photoUrl}"]`)).toBeNull();
   });
 
@@ -157,7 +197,9 @@ describe("ReaderView Image Duplication", () => {
     await readerView.onOpen();
     await readerView.displayItem(item);
 
-    const body = getHarness(readerView).readingContainer.querySelector<HTMLElement>(
+    const body = getHarness(
+      readerView,
+    ).readingContainer.querySelector<HTMLElement>(
       ".rss-reader-article-content",
     );
     await vi.waitFor(() => {
@@ -169,8 +211,7 @@ describe("ReaderView Image Duplication", () => {
   });
 
   it("does not prepend a stale formula hero when building saved Markdown", () => {
-    const formulaUrl =
-      "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
+    const formulaUrl = "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
     const item: FeedItem = {
       title: "Saved WordPress math article",
       link: "https://example.com/saved-math",
@@ -196,7 +237,8 @@ describe("ReaderView Image Duplication", () => {
   });
 
   it("saves previewed WeChat articles with the direct original link and leaves cached HTML intact", () => {
-    const original = "https://mp.weixin.qq.com/s?__biz=abc%3D%3D&mid=123&sn=def#read";
+    const original =
+      "https://mp.weixin.qq.com/s?__biz=abc%3D%3D&mid=123&sn=def#read";
     const proxy = `https://wechat2rss.bestblogs.dev/link-proxy/?u=${encodeURIComponent(original)}&r=1`;
     const cached = `<p>Cached article.</p><a href="${proxy.replace(/&/g, "&amp;")}"><strong>跳转到微信打开</strong></a>`;
     const item: FeedItem = {
@@ -220,8 +262,7 @@ describe("ReaderView Image Duplication", () => {
   });
 
   it("serializes WordPress formula images with Obsidian math delimiters", () => {
-    const formulaUrl =
-      "https://s0.wp.com/latex.php?latex=%7Ba_1%7D&bg=ffffff";
+    const formulaUrl = "https://s0.wp.com/latex.php?latex=%7Ba_1%7D&bg=ffffff";
     const item: FeedItem = {
       title: "Saved native WordPress math",
       link: "https://example.com/saved-native-math",
@@ -607,7 +648,8 @@ describe("ReaderView – summary de-duplication", () => {
   it("omits the feed description callout when the description is missing", async () => {
     const item = makeItem({
       description: "",
-      content: "<p>Extended body paragraph that should still render in the article body.</p>",
+      content:
+        "<p>Extended body paragraph that should still render in the article body.</p>",
     });
 
     await readerView.displayItem(item);
@@ -616,7 +658,9 @@ describe("ReaderView – summary de-duplication", () => {
     const body = rc.querySelector<HTMLElement>(".rss-reader-article-content");
 
     expect(rc.querySelector(".rss-reader-description-callout")).toBeNull();
-    expect(rc.textContent || "").not.toContain("No feed description available.");
+    expect(rc.textContent || "").not.toContain(
+      "No feed description available.",
+    );
     expect(body?.textContent || "").toContain(
       "Extended body paragraph that should still render in the article body.",
     );
@@ -625,7 +669,8 @@ describe("ReaderView – summary de-duplication", () => {
   it("omits the feed description callout when the description is only an ellipsis placeholder", async () => {
     const item = makeItem({
       description: "<p>...</p>",
-      content: "<p>Extended body paragraph that should still render in the article body.</p>",
+      content:
+        "<p>Extended body paragraph that should still render in the article body.</p>",
     });
 
     await readerView.displayItem(item);

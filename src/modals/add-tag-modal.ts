@@ -1,6 +1,12 @@
 import { App, Modal, Notice, Setting } from "obsidian";
 import type { RssDashboardSettings, Tag } from "../types/types";
-import { DEFAULT_TAG_COLOR } from "../utils/tag-colors";
+import {
+  createTagWithAppearanceChanges,
+  DEFAULT_TAG_COLOR,
+  DEFAULT_TAG_TEXT_COLOR,
+} from "../utils/tag-colors";
+import { applyTagAppearance } from "../utils/tag-colors";
+import { addTagColorPaletteControl } from "../components/tag-color-palette-control";
 
 export interface AddTagModalOptions {
   settings: Readonly<RssDashboardSettings>;
@@ -10,6 +16,7 @@ export interface AddTagModalOptions {
 
 export class AddTagModal extends Modal {
   private readonly opts: AddTagModalOptions;
+  private paletteControlCleanups: Array<() => void> = [];
 
   constructor(app: App, opts: AddTagModalOptions) {
     super(app);
@@ -29,13 +36,47 @@ export class AddTagModal extends Modal {
       cls: "rss-dashboard-tag-modal-form",
     });
 
-    const colorInput = formContainer.createEl("input", {
+    const defaultTagColor = settings.defaultTagColor ?? DEFAULT_TAG_COLOR;
+    const defaultTagTextColor =
+      settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR;
+    const backgroundField = formContainer.createDiv({
+      cls: "rss-dashboard-tag-modal-color-field",
+    });
+    backgroundField.createEl("label", { text: "Background" });
+    const colorInput = backgroundField.createEl("input", {
       attr: {
         type: "color",
-        value: DEFAULT_TAG_COLOR,
+        value: defaultTagColor,
+        "aria-label": "Tag background color",
       },
-      cls: "rss-dashboard-tag-modal-color-picker",
+      cls: "rss-dashboard-tag-modal-color-picker rss-dashboard-add-tag-background-color",
     });
+    this.paletteControlCleanups.push(
+      addTagColorPaletteControl({
+        container: backgroundField,
+        input: colorInput,
+        fieldName: "Background",
+      }),
+    );
+    const textField = formContainer.createDiv({
+      cls: "rss-dashboard-tag-modal-color-field",
+    });
+    textField.createEl("label", { text: "Text" });
+    const textColorInput = textField.createEl("input", {
+      attr: {
+        type: "color",
+        value: defaultTagTextColor,
+        "aria-label": "Tag text color",
+      },
+      cls: "rss-dashboard-add-tag-text-color",
+    });
+    this.paletteControlCleanups.push(
+      addTagColorPaletteControl({
+        container: textField,
+        input: textColorInput,
+        fieldName: "Text",
+      }),
+    );
 
     const nameInput = formContainer.createEl("input", {
       attr: {
@@ -46,6 +87,32 @@ export class AddTagModal extends Modal {
       cls: "rss-dashboard-tag-modal-name-input",
     });
     nameInput.spellcheck = false;
+    const preview = formContainer.createSpan({
+      cls: "rss-dashboard-tag-badge rss-dashboard-tag-modal-preview",
+      text: "Preview",
+    });
+    const updatePreview = () => {
+      preview.textContent = nameInput.value.trim() || "Preview";
+      applyTagAppearance(
+        preview,
+        {
+          name: preview.textContent,
+          ...(colorInput.value !== defaultTagColor
+            ? { color: colorInput.value }
+            : {}),
+          ...(textColorInput.value !== defaultTagTextColor
+            ? { textColor: textColorInput.value }
+            : {}),
+        },
+        settings,
+      );
+    };
+    nameInput.addEventListener("input", updatePreview);
+    colorInput.addEventListener("input", updatePreview);
+    colorInput.addEventListener("change", updatePreview);
+    textColorInput.addEventListener("input", updatePreview);
+    textColorInput.addEventListener("change", updatePreview);
+    updatePreview();
 
     const buttonContainer = contentEl.createDiv({
       cls: "rss-dashboard-modal-buttons",
@@ -64,7 +131,6 @@ export class AddTagModal extends Modal {
     });
     addButton.addEventListener("click", () => {
       const tagName = nameInput.value.trim();
-      const tagColor = colorInput.value;
 
       if (tagName) {
         if (
@@ -76,10 +142,14 @@ export class AddTagModal extends Modal {
           return;
         }
 
-        const newTag: Tag = {
-          name: tagName,
-          color: tagColor,
-        };
+        const newTag: Tag = createTagWithAppearanceChanges(
+          tagName,
+          { background: colorInput.value, text: textColorInput.value },
+          {
+            background: colorInput.value !== defaultTagColor,
+            text: textColorInput.value !== defaultTagTextColor,
+          },
+        );
         settings.availableTags.push(newTag);
 
         onAdded();
@@ -95,11 +165,14 @@ export class AddTagModal extends Modal {
     formContainer.appendChild(buttonContainer);
 
     window.requestAnimationFrame(() => {
+      if (!nameInput.isConnected) return;
       nameInput.focus();
     });
   }
 
   onClose() {
+    this.paletteControlCleanups.forEach((cleanup) => cleanup());
+    this.paletteControlCleanups = [];
     this.contentEl.empty();
   }
 }

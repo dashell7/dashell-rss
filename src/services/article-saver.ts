@@ -1,3 +1,6 @@
+import { templatePlacesImage } from "./article-template/template-variables";
+import { removeTemplateImageFromBody } from "./article-template/note-template";
+import { addTableTurndownRule } from "../utils/table-markdown";
 import { App, Notice, TFile, moment } from "obsidian";
 import { Readability } from "@mozilla/readability";
 import TurndownService from "turndown";
@@ -26,16 +29,67 @@ import { escapeYamlDoubleQuoted } from "../utils/yaml-escape";
 import { ensureVaultFolder } from "../utils/vault-files";
 import { normalizeWechatArticleLinks } from "../utils/wechat-article-links";
 
-const MAX_FILENAME_LENGTH = 100;
+const MAX_FILENAME_LENGTH = 245;
+const MAX_FILENAME_BYTES = 255;
+const MARKDOWN_EXTENSION_BYTES = 3;
 
 export function sanitizeFilename(name: string): string {
-  const sanitized = name
-    .replace(/[/\\:*?"<>|]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  const truncated = sanitized.slice(0, MAX_FILENAME_LENGTH).trim();
+  return sanitizeFilenameStem(name) || "Untitled Article";
+}
 
-  return truncated || "Untitled Article";
+function sanitizeFilenameStem(name: string): string {
+  const cleaned = name
+    .replace(/[/\\:*?"<>|#\x5b\x5d^]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[. ]+$/g, "");
+  const stem = truncateFilenameStem(
+    cleaned,
+    MAX_FILENAME_LENGTH,
+    MAX_FILENAME_BYTES - MARKDOWN_EXTENSION_BYTES,
+  )
+    .trim()
+    .replace(/[. ]+$/g, "");
+  return /^(?:CON|PRN|AUX|NUL|COM[1-9¹²³]|LPT[1-9¹²³])$/i.test(stem)
+    ? ""
+    : stem;
+}
+
+function truncateFilenameStem(
+  value: string,
+  maxCharacters: number,
+  maxBytes: number,
+): string {
+  let characterCount = 0;
+  let byteCount = 0;
+  let result = "";
+  for (const character of value) {
+    const codePoint = character.codePointAt(0);
+    if (
+      codePoint === undefined ||
+      (codePoint >= 0xd800 && codePoint <= 0xdfff)
+    ) {
+      continue;
+    }
+    const characterBytes =
+      codePoint <= 0x7f
+        ? 1
+        : codePoint <= 0x7ff
+          ? 2
+          : codePoint <= 0xffff
+            ? 3
+            : 4;
+    if (
+      characterCount >= maxCharacters ||
+      byteCount + characterBytes > maxBytes
+    ) {
+      break;
+    }
+    result += character;
+    characterCount += 1;
+    byteCount += characterBytes;
+  }
+  return result;
 }
 
 export class ArticleSaver {
@@ -57,6 +111,7 @@ export class ArticleSaver {
     this.getUseFirstSeenDateFallback = getUseFirstSeenDateFallback;
     this.turndownService = new TurndownService();
     addMathTurndownRule(this.turndownService);
+    addTableTurndownRule(this.turndownService);
   }
 
   private cleanHtml(html: string): string {
@@ -109,8 +164,7 @@ export class ArticleSaver {
    */
   private resolveSavedArticleDate(item: FeedItem): Date {
     return (
-      resolveDisplayDate(item, this.getUseFirstSeenDateFallback()) ??
-      new Date()
+      resolveDisplayDate(item, this.getUseFirstSeenDateFallback()) ?? new Date()
     );
   }
 
@@ -188,7 +242,7 @@ export class ArticleSaver {
     }
   }
 
-  private getFallbackHeroUrl(item: FeedItem): string {
+  getFallbackHeroUrl(item: FeedItem): string {
     const enclosureImageUrl =
       item.enclosure?.type?.startsWith("image/") && item.enclosure.url
         ? item.enclosure.url
@@ -297,9 +351,8 @@ export class ArticleSaver {
       .replace(/{{feedTitle}}/g, () => escapeYamlDoubleQuoted(item.feedTitle))
       .replace(/{{summary}}/g, () => escapeYamlDoubleQuoted(item.summary || ""))
       .replace(/{{guid}}/g, () => escapeYamlDoubleQuoted(item.guid))
-      .replace(
-        /{{image}}/g,
-        () => escapeYamlDoubleQuoted(this.getFallbackHeroUrl(item)),
+      .replace(/{{image}}/g, () =>
+        escapeYamlDoubleQuoted(this.getFallbackHeroUrl(item)),
       );
 
     if (item.mediaType === "video" && item.videoId) {
@@ -353,7 +406,9 @@ export class ArticleSaver {
 
     let replaced = text
       .replace(/{{date}}/g, () => longFormattedDate)
-      .replace(/{{dateShort}}/g, () => this.formatMoment(validDate, "YYYY-MM-DD"))
+      .replace(/{{dateShort}}/g, () =>
+        this.formatMoment(validDate, "YYYY-MM-DD"),
+      )
       .replace(/{{isoDate}}/g, () => isoDateTime)
       .replace(/{{isoDateTime}}/g, () => isoDateTime)
       .replace(/{{firstSeen}}/g, () => longFormattedFirstSeen)
@@ -377,12 +432,21 @@ export class ArticleSaver {
     template: string,
     rawContent?: string,
   ): string {
-    const content = rawContent
+    let content = rawContent
       ? rawContent
       : this.prependFallbackHeroHtml(
           item,
           this.cleanHtml(this.getPreferredFeedHtml(item)),
         );
+
+    if (
+      !rawContent &&
+      templatePlacesImage(template) &&
+      this.getFallbackHeroUrl(item)
+    ) {
+      const hero = this.getFallbackHeroUrl(item);
+      content = removeTemplateImageFromBody(content, hero);
+    }
 
     const pubDate = this.resolveSavedArticleDate(item);
 
@@ -402,22 +466,23 @@ export class ArticleSaver {
       item.firstSeenMs,
     );
 
-    return replacedWithDates
-      .replace(/{{title}}/g, () => item.title)
-      .replace(/{{link}}/g, () => item.link)
-      .replace(/{{author}}/g, () => item.author || "")
-      .replace(/{{source}}/g, () => item.feedTitle)
-      .replace(/{{feedTitle}}/g, () => item.feedTitle)
-      .replace(/{{summary}}/g, () => item.summary || "")
-      // Use a replacer function for {{content}} so that special replacement
-      // patterns in JS regex (like $$, $&, $`) are not interpreted — without
-      // this, display math delimiters like $$x^2$$ would be collapsed to $x^2$.
-      .replace(/{{content}}/g, () => content)
-      .replace(/{{tags}}/g, () => tagsString)
-      .replace(/{{guid}}/g, () => item.guid)
-      .replace(/{{image}}/g, () => this.getFallbackHeroUrl(item));
+    return (
+      replacedWithDates
+        .replace(/{{title}}/g, () => item.title)
+        .replace(/{{link}}/g, () => item.link)
+        .replace(/{{author}}/g, () => item.author || "")
+        .replace(/{{source}}/g, () => item.feedTitle)
+        .replace(/{{feedTitle}}/g, () => item.feedTitle)
+        .replace(/{{summary}}/g, () => item.summary || "")
+        // Use a replacer function for {{content}} so that special replacement
+        // patterns in JS regex (like $$, $&, $`) are not interpreted — without
+        // this, display math delimiters like $$x^2$$ would be collapsed to $x^2$.
+        .replace(/{{content}}/g, () => content)
+        .replace(/{{tags}}/g, () => tagsString)
+        .replace(/{{guid}}/g, () => item.guid)
+        .replace(/{{image}}/g, () => this.getFallbackHeroUrl(item))
+    );
   }
-
 
   private normalizePath(path: string): string {
     if (!path || path.trim() === "") {
@@ -675,7 +740,15 @@ export class ArticleSaver {
       const loadingNotice = new Notice("Fetching full article content...", 0);
 
       const fetchResult = await this.fetchArticleContentWithOutcome(item.link);
-      const feedContent = this.getPreferredFeedHtml(item);
+      const originalFeedContent = this.getPreferredFeedHtml(item);
+      const template = customTemplate || this.settings.defaultTemplate || "";
+      const imageInTemplate =
+        templatePlacesImage(template) && Boolean(this.getFallbackHeroUrl(item));
+      const prepare = (html: string) =>
+        imageInTemplate
+          ? removeTemplateImageFromBody(html, this.getFallbackHeroUrl(item))
+          : html;
+      const feedContent = prepare(originalFeedContent);
 
       if (!fetchResult.content) {
         loadingNotice.hide();
@@ -691,13 +764,15 @@ export class ArticleSaver {
         const fallbackMarkdown = feedContent
           ? this.htmlToMarkdown(feedContent)
           : undefined;
-        const fallbackWithHero = fallbackMarkdown
-          ? this.prependFallbackHeroMarkdown(
-              item,
-              fallbackMarkdown,
-              feedContent,
-            )
-          : undefined;
+        const fallbackWithHero = imageInTemplate
+          ? fallbackMarkdown
+          : fallbackMarkdown
+            ? this.prependFallbackHeroMarkdown(
+                item,
+                fallbackMarkdown,
+                feedContent,
+              )
+            : undefined;
         return await this.saveArticle(
           item,
           customFolder,
@@ -713,11 +788,14 @@ export class ArticleSaver {
         : feedContent && feedTextLength > fetchedTextLength
           ? feedContent
           : fetchResult.content;
-      const markdownContent = this.prependFallbackHeroMarkdown(
-        item,
-        this.htmlToMarkdown(contentSource),
-        contentSource,
-      );
+      const body = prepare(contentSource);
+      const markdownContent = imageInTemplate
+        ? this.htmlToMarkdown(body)
+        : this.prependFallbackHeroMarkdown(
+            item,
+            this.htmlToMarkdown(body),
+            body,
+          );
       loadingNotice.hide();
 
       return await this.saveArticle(

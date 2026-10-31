@@ -1438,7 +1438,7 @@ describe("ImportStarredModal", () => {
       };
       const previous = call.item.tags!.find((t) => t.name === "Design")!;
       expect(newTagChip("Design")?.style.getPropertyValue("--tag-color")).toBe(
-        previous.color,
+        previous.color ?? "#8a5cf5",
       );
 
       call.onTagEdited?.(
@@ -1463,9 +1463,9 @@ describe("ImportStarredModal", () => {
         ).find((el) => el.textContent === name);
 
       newTagChip("Design")!.click();
-      document.querySelector<HTMLInputElement>(
-        ".rss-dashboard-tag-modal-color-picker",
-      )!.value = "#00ff00";
+      const picker = document.querySelector<HTMLInputElement>(".rss-dashboard-tag-modal-color-picker")!;
+      picker.value = "#00ff00";
+      picker.dispatchEvent(new Event("input"));
       document
         .querySelector<HTMLButtonElement>(
           ".rss-dashboard-tag-modal-form .rss-dashboard-primary-button",

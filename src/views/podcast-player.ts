@@ -1,3 +1,4 @@
+import { DEFAULT_TAG_APPEARANCE_SETTINGS, type TagAppearanceSettings } from "../utils/tag-colors";
 import { FeedItem } from "../types/types";
 import { App, setIcon, Menu, Notice } from "obsidian";
 import { PodcastEpisodeList } from "../components/podcast-episode-list";
@@ -75,6 +76,7 @@ export class PodcastPlayer {
     progressTrackingEnabled = true,
     defaultPlaySpeed = 1,
     useFirstSeenDateFallback = false,
+    private readonly tagAppearanceSettings: TagAppearanceSettings = DEFAULT_TAG_APPEARANCE_SETTINGS,
   ) {
     this.container = container;
     this.app = app;
@@ -126,8 +128,8 @@ export class PodcastPlayer {
     }
 
     const resolvedAudioUrl =
-      item.audioUrl ||
-      item.enclosure?.url ||
+      item.audioUrl?.trim() ||
+      item.enclosure?.url?.trim() ||
       MediaService.extractPodcastAudio(item.description);
     if (resolvedAudioUrl) {
       item.audioUrl = resolvedAudioUrl;
@@ -819,6 +821,7 @@ export class PodcastPlayer {
   private renderPlaylistSection(): void {
     new PodcastEpisodeList(this.container, {
       episodes: this.playlist,
+      tagAppearanceSettings: this.tagAppearanceSettings,
       activeEpisodeGuid: this.currentItem?.guid,
       theme: this.theme,
       useFirstSeenDateFallback: this.useFirstSeenDateFallback,

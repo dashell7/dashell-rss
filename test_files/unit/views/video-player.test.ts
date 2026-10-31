@@ -296,6 +296,7 @@ describe("VideoPlayer", () => {
     window.dispatchEvent(
       new MessageEvent("message", {
         origin: "https://www.youtube-nocookie.com",
+        source: container.querySelector("iframe")!.contentWindow,
         data: JSON.stringify({
           event: "onReady",
           id: iframeId,
@@ -307,6 +308,7 @@ describe("VideoPlayer", () => {
     window.dispatchEvent(
       new MessageEvent("message", {
         origin: "https://www.youtube-nocookie.com",
+        source: container.querySelector("iframe")!.contentWindow,
         data: JSON.stringify({
           event: "infoDelivery",
           info: { duration: 120 },
@@ -319,6 +321,7 @@ describe("VideoPlayer", () => {
     window.dispatchEvent(
       new MessageEvent("message", {
         origin: "https://www.youtube-nocookie.com",
+        source: container.querySelector("iframe")!.contentWindow,
         data: JSON.stringify({
           event: "onStateChange",
           info: 1,
@@ -369,6 +372,7 @@ describe("VideoPlayer", () => {
     window.dispatchEvent(
       new MessageEvent("message", {
         origin: "https://www.youtube-nocookie.com",
+        source: container.querySelector("iframe")!.contentWindow,
         data: JSON.stringify({
           event: "onReady",
           id: iframeId,
@@ -380,6 +384,7 @@ describe("VideoPlayer", () => {
     window.dispatchEvent(
       new MessageEvent("message", {
         origin: "https://www.youtube-nocookie.com",
+        source: container.querySelector("iframe")!.contentWindow,
         data: JSON.stringify({
           event: "infoDelivery",
           info: { duration: 120 },
@@ -392,6 +397,7 @@ describe("VideoPlayer", () => {
     window.dispatchEvent(
       new MessageEvent("message", {
         origin: "https://www.youtube-nocookie.com",
+        source: container.querySelector("iframe")!.contentWindow,
         data: JSON.stringify({
           event: "onStateChange",
           info: 1,
@@ -441,6 +447,7 @@ describe("VideoPlayer", () => {
     window.dispatchEvent(
       new MessageEvent("message", {
         origin: "https://www.youtube-nocookie.com",
+        source: container.querySelector("iframe")!.contentWindow,
         data: JSON.stringify({
           event: "infoDelivery",
           info: { duration: 120, currentTime: 42 },
@@ -471,4 +478,41 @@ describe("VideoPlayer", () => {
       "Error loading video: boom",
     );
   });
+  it("uses the same player for Twitch VOD/live and ignores stale YouTube messages after switching", () => {
+    vi.useFakeTimers();
+    const container = createContainer();
+    const progress = vi.fn();
+    const player = new VideoPlayer(container, undefined, progress);
+    const youtube = baseItem({ playbackProgress: { position: 42, duration: 120, lastUpdated: 1 } });
+    player.loadVideo(youtube);
+    const oldFrame = container.querySelector("iframe")!;
+    player.loadVideo(baseItem({ guid: "twitch", videoId: undefined, link: "https://www.twitch.tv/videos/12345" }));
+    const frame = container.querySelector("iframe")!;
+    expect(new URL(frame.src).hostname).toBe("player.twitch.tv");
+    expect(new URL(frame.src).searchParams.get("video")).toBe("v12345");
+    const post = vi.spyOn(frame.contentWindow!, "postMessage");
+    window.dispatchEvent(new MessageEvent("message", { origin: "https://www.youtube.com", source: oldFrame.contentWindow, data: { event: "infoDelivery", info: { currentTime: 99, duration: 120, playerState: 1 } } }));
+    progress.mockClear();
+    vi.advanceTimersByTime(6000);
+    expect(progress).not.toHaveBeenCalled();
+    expect(post).not.toHaveBeenCalled();
+    player.loadVideo(baseItem({ guid: "live", videoId: undefined, link: "https://twitch.tv/example_channel" }));
+    expect(new URL(container.querySelector("iframe")!.src).searchParams.get("channel")).toBe("example_channel");
+    player.destroy();
+    vi.useRealTimers();
+  });
+
+  it("focus mode keeps only the video and sanitizes descriptions outside focus mode", () => {
+    const container = createContainer();
+    const player = new VideoPlayer(container, undefined, undefined, true, false, true);
+    player.loadVideo(baseItem());
+    expect(container.querySelector("iframe")).not.toBeNull();
+    expect(container.querySelector(".rss-video-details, .rss-video-links, .rss-video-related")).toBeNull();
+    player.destroy();
+    const full = new VideoPlayer(container);
+    full.loadVideo(baseItem({ description: '<img src="x" onerror="alert(1)"><script>alert(1)</script><a href="javascript:alert(1)">bad</a>' }));
+    expect(container.querySelector("script, [onerror], a[href^='javascript:']")).toBeNull();
+    full.destroy();
+  });
+
 });

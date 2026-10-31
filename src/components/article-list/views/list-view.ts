@@ -1,3 +1,4 @@
+import { applyTagAppearance } from "../../../utils/tag-colors";
 import { setTooltip } from "obsidian";
 import type { FeedItem } from "../../../types/types";
 import { formatArticleDate } from "../../../utils/platform-utils";
@@ -93,10 +94,7 @@ export function renderListView(
             cls: "rss-dashboard-tag-badge",
             text: tag.name,
           });
-          tagEl.style.setProperty(
-            "--tag-color",
-            tag.color || "var(--interactive-accent)",
-          );
+          applyTagAppearance(tagEl, tag, { ...ctx.settings, availableTags: ctx.settings.availableTags ?? [] });
         });
       }
     } else {
@@ -121,10 +119,7 @@ export function renderListView(
             cls: "rss-dashboard-tag-badge",
             text: tag.name,
           });
-          tagEl.style.setProperty(
-            "--tag-color",
-            tag.color || "var(--interactive-accent)",
-          );
+          applyTagAppearance(tagEl, tag, { ...ctx.settings, availableTags: ctx.settings.availableTags ?? [] });
         });
         if (article.tags.length > MAX_VISIBLE_TAGS) {
           const overflowTag = bodyTags.createDiv({

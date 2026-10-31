@@ -7,7 +7,6 @@ import {
   mapStarredExportToCandidates,
   type StarredJsonExport,
 } from "../../../src/services/starred-import-mapper";
-import { DEFAULT_TAG_COLOR } from "../../../src/utils/tag-colors";
 import type { Tag } from "../../../src/types/types";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -234,8 +233,8 @@ describe("mapStarredExportToCandidates", () => {
     expect(labeled).toBeDefined();
     expect(labeled?.item.author).toBe("Jane Example");
     expect(labeled?.item.tags).toEqual([
-      { name: "Design", color: DEFAULT_TAG_COLOR },
-      { name: "art", color: DEFAULT_TAG_COLOR },
+      { name: "Design" },
+      { name: "art" },
     ]);
   });
 
@@ -276,7 +275,7 @@ describe("mapStarredExportToCandidates", () => {
 
     expect(labeled?.item.tags).toEqual([
       { name: "design", color: "#123456" },
-      { name: "art", color: DEFAULT_TAG_COLOR },
+      { name: "art" },
     ]);
     // The mapper is pure: it never mutates the availableTags it was given.
     expect(availableTags).toHaveLength(2);
@@ -323,8 +322,8 @@ describe("mapStarredExportToCandidates", () => {
     // also being starred.
     const labeled = candidates.find((c) => c.item.guid.endsWith("0002"));
     expect(labeled?.item.tags).toEqual([
-      { name: "Design", color: DEFAULT_TAG_COLOR },
-      { name: "art", color: DEFAULT_TAG_COLOR },
+      { name: "Design" },
+      { name: "art" },
     ]);
   });
 
@@ -462,7 +461,7 @@ describe("FreshRSS-compatible export shape", () => {
     expect(item.starred).toBe(true);
     expect(item.read).toBe(true);
     expect(item.tags).toEqual([
-      { name: "test_tag", color: DEFAULT_TAG_COLOR },
+      { name: "test_tag" },
     ]);
   });
 

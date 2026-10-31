@@ -1,3 +1,7 @@
+import { twitchChannelFor, twitchVodIdFor } from "../utils/twitch-embed";
+import { applyTagAppearance } from "../utils/tag-colors";
+import { hasMeaningfulArticleContent } from "../utils/reader-html-cleanup";
+import { resolveReaderMediaRoute } from "../utils/reader-article-render";
 import { App, type Component, TFile } from "obsidian";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { scheduleProcessMathElements } from "../utils/math-rendering";
@@ -126,6 +130,7 @@ export class ArticleRenderer {
       if (vid) item.videoId = vid;
     }
 
+    const route = resolveReaderMediaRoute(item);
     const bilibili = bilibiliEmbedUrl(item.link);
     if (bilibili) {
       this.cleanupPlayers();
@@ -136,13 +141,12 @@ export class ArticleRenderer {
         referrerpolicy: "no-referrer", allow: "fullscreen; picture-in-picture",
       } });
       await this.displayArticle(container, item);
-    } else if (item.mediaType === "video" && item.videoId) {
+    } else if ((item.mediaType === "video" && item.videoId) || twitchChannelFor(item) || twitchVodIdFor(item)) {
       await this.displayVideo(container, item);
     } else if (item.mediaType === "video" && item.videoUrl) {
       await this.displayVideoPodcast(container, item);
     } else if (
-      item.mediaType === "podcast" &&
-      (item.audioUrl || MediaService.extractPodcastAudio(item.description))
+      route === "podcast"
     ) {
       if (!item.audioUrl) {
         const aud = MediaService.extractPodcastAudio(item.description);
@@ -213,7 +217,7 @@ export class ArticleRenderer {
     const videoContainer = container.createDiv({
       cls: "rss-reader-video-container enhanced",
     });
-    if (item.videoId) {
+    if (item.videoId || twitchChannelFor(item) || twitchVodIdFor(item)) {
       this.videoPlayer = new VideoPlayer(
         videoContainer,
         (selectedVideo) => {
@@ -222,6 +226,7 @@ export class ArticleRenderer {
         this.onPlaybackProgress,
         this.settings.media.rememberPlaybackProgress,
         this.settings.useFirstSeenDateFallback,
+        this.settings.media.videoFocusMode ?? false,
       );
       this.videoPlayer.loadVideo(item);
       if (this.relatedItems.length > 0) {
@@ -289,6 +294,7 @@ export class ArticleRenderer {
         this.settings.media.rememberPlaybackProgress,
         this.settings.media.defaultPlaySpeed ?? 1,
         this.settings.useFirstSeenDateFallback,
+        this.settings,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {
@@ -355,7 +361,7 @@ export class ArticleRenderer {
           cls: "rss-reader-tag",
         });
         tagElement.textContent = tag.name;
-        tagElement.style.setProperty("--tag-color", tag.color);
+        applyTagAppearance(tagElement, tag, this.settings);
       }
     }
     const heroSlot = container.createDiv({
@@ -695,6 +701,7 @@ export class ArticleRenderer {
       const result = await fetchFullArticleContentWithOutcome(url, proxyUrl);
       if (generation !== this.renderGeneration) return "";
       this.currentFullContentFailureType = result.failureType;
+      if (result.coverImage !== undefined && this.currentItem) this.currentItem.coverImage = result.coverImage;
       return result.content;
     } catch {
       if (generation !== this.renderGeneration) return "";
@@ -713,12 +720,7 @@ export class ArticleRenderer {
   }
 
   private hasMeaningfulArticleContent(html: string): boolean {
-    if (!html) return false;
-    const text = html
-      .replace(/<[^>]*>/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-    return text.length > 200;
+    return hasMeaningfulArticleContent(html);
   }
 
   private shouldSkipFullArticleFetch(item: FeedItem): boolean {
@@ -790,6 +792,7 @@ export class ArticleRenderer {
     doc: Document,
     feedDescriptionHtml?: string,
   ): void {
+    if (doc.body?.querySelector("article[data-rss-bluesky-post]")) return;
     const normalizedDescription = this.normalizeComparableText(
       feedDescriptionHtml || "",
     );
@@ -840,6 +843,7 @@ export class ArticleRenderer {
   }
 
   private stripLeadMediaBeforeContent(doc: Document): void {
+    if (doc.body?.querySelector("article[data-rss-bluesky-post]")) return;
     if (!doc.body) return;
     const blocks = Array.from(doc.body.children) as HTMLElement[];
     const firstSubstantialIndex = blocks.findIndex(

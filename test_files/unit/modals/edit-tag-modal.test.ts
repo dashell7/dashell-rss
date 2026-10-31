@@ -18,6 +18,40 @@ function makeSettings(): RssDashboardSettings {
 }
 
 describe("EditTagModal", () => {
+  it("keeps a failed new tag save retryable without adding it twice", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const settings = makeSettings();
+    const onSave = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("disk unavailable"))
+      .mockResolvedValue(undefined);
+    new EditTagModal(new App(), {
+      settings,
+      tag: { name: "Draft" },
+      isNew: true,
+      onSave,
+    }).open();
+    const save = document.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-primary-button",
+    )!;
+    save.click();
+    save.click();
+    await vi.waitFor(() => expect(save.disabled).toBe(false));
+    expect(onSave).toHaveBeenCalledOnce();
+    expect(
+      document.querySelector(".rss-dashboard-edit-tag-modal"),
+    ).not.toBeNull();
+    save.click();
+    await vi.waitFor(() =>
+      expect(
+        document.querySelector(".rss-dashboard-edit-tag-modal"),
+      ).toBeNull(),
+    );
+    expect(onSave).toHaveBeenCalledTimes(2);
+    expect(
+      settings.availableTags.filter((tag) => tag.name === "Draft"),
+    ).toHaveLength(1);
+  });
   beforeEach(() => {
     installObsidianDomPolyfills();
     document.body.empty();
@@ -90,7 +124,10 @@ describe("EditTagModal", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(onSave).toHaveBeenCalledTimes(1);
-    expect(onSave).toHaveBeenCalledWith({ name: "Technology", color: "#111111" });
+    expect(onSave).toHaveBeenCalledWith({
+      name: "Technology",
+      color: "#111111",
+    });
     expect(events).toEqual(["save:open"]);
     expect(document.querySelector(".rss-dashboard-edit-tag-modal")).toBeNull();
   });

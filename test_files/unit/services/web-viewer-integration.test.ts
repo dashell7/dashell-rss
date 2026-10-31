@@ -359,7 +359,7 @@ author: "{{author}}"
       expect(
         sanitizeFilename(`  ${"a".repeat(98)} /  zzz`),
       ).toBe(
-        `${"a".repeat(98)} z`,
+        `${"a".repeat(98)} zzz`,
       );
     });
 

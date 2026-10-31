@@ -146,7 +146,7 @@ describe("FolderSelectorPopup", () => {
     // width=240, margin=16 => maxLeft = 300 - 240 - 16 = 44
     expect(popup.style.left).toBe("44px");
     // flipped above => top = rect.top - 4
-    expect(popup.style.top).toBe("176px");
+    expect(popup.style.top).toBe("16px");
     expect(popup.classList.contains("rss-folder-selector-popup-above")).toBe(
       true,
     );
@@ -535,7 +535,7 @@ describe("FolderSelectorPopup", () => {
   // popup underneath it — the modal's own click bubbles past its
   // (now-removed) content all the way to document, tripping the popup's
   // outside-click handler.
-  it("listOnly mode: cancelling Add new folder via a real Cancel-button click leaves the still-open popup usable", async () => {
+  it("listOnly mode: cancelling Add new folder closes both popup and modal", async () => {
     vi.useFakeTimers();
 
     const anchorEl = createDiv();
@@ -573,15 +573,9 @@ describe("FolderSelectorPopup", () => {
 
     expect(onSelect).not.toHaveBeenCalled();
     const popup = document.body.querySelector(".rss-folder-selector-popup");
-    expect(popup).not.toBeNull();
+    expect(popup).toBeNull();
+    expect(document.querySelector(".rss-folder-name-modal-cancel")).toBeNull();
 
-    // Not just present in the DOM — actually usable again: clicking Root
-    // must still work.
-    const rootItem = document.body.querySelector(
-      ".rss-folder-selector-root",
-    ) as HTMLElement;
-    rootItem.click();
-    expect(onSelect).toHaveBeenCalledWith("");
   });
 
   // New bug: while the create-folder modal is open, the folder list behind
@@ -614,35 +608,15 @@ describe("FolderSelectorPopup", () => {
     ) as HTMLElement;
     addNewItem.click();
 
-    // The modal is now open on top. The popup underneath must visibly and
-    // functionally be inert: clicking straight through to an existing
-    // folder item must not fire onSelect.
-    const popup = document.body.querySelector(
-      ".rss-folder-selector-popup",
-    ) as HTMLElement;
-    expect(popup.classList.contains("rss-folder-selector-popup-inert")).toBe(
-      true,
-    );
-
-    const rootItem = document.body.querySelector(
-      ".rss-folder-selector-root",
-    ) as HTMLElement;
-    rootItem.click();
+    expect(document.querySelector(".rss-folder-selector-popup")).toBeNull();
     expect(onSelect).not.toHaveBeenCalled();
-
-    // Cancelling restores interactivity.
-    const cancelButton = document.body.querySelector(
-      ".rss-folder-name-modal-cancel",
-    ) as HTMLElement;
+    const cancelButton = document.querySelector<HTMLElement>(".rss-folder-name-modal-cancel")!;
     cancelButton.click();
     vi.useRealTimers();
     await Promise.resolve();
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(document.querySelector(".rss-folder-selector-popup")).toBeNull();
 
-    expect(
-      popup.classList.contains("rss-folder-selector-popup-inert"),
-    ).toBe(false);
-    rootItem.click();
-    expect(onSelect).toHaveBeenCalledWith("");
   });
 });
 

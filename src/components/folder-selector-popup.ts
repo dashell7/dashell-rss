@@ -37,13 +37,13 @@ export class FolderSelectorPopup {
   private clickOutsideHandler!: (e: MouseEvent) => void;
   private keydownHandler!: (e: KeyboardEvent) => void;
   private isDestroyed = false;
-  // True while a modal this popup opened (e.g. create-folder) is on top of
-  // it — see setInert().
-  private isInert = false;
+  private ownerDocument: Document;
   private listOnly: boolean = false;
 
   constructor(plugin: RssDashboardPlugin, options: FolderSelectorOptions) {
     this.plugin = plugin;
+    this.ownerDocument = options.anchorEl.ownerDocument;
+    plugin.register?.(() => this.close());
     this.onSelect = options.onSelect;
     this.onClose = options.onClose;
     this.defaultFolder = options.defaultFolder;
@@ -65,7 +65,7 @@ export class FolderSelectorPopup {
     // Focus input after popup is rendered (only if not in list-only mode)
     if (!this.listOnly) {
       window.setTimeout(() => {
-        this.inputEl?.focus();
+        if (!this.isDestroyed) this.inputEl?.focus();
       }, 0);
     }
   }
@@ -105,14 +105,14 @@ export class FolderSelectorPopup {
     _defaultFolder?: string,
     initialQuery?: string,
   ): HTMLElement {
-    const popup = activeDocument.body.createDiv({
+    const popup = anchorEl.ownerDocument.body.createDiv({
       cls: "rss-folder-selector-popup",
     });
 
     // Calculate position
     const rect = anchorEl.getBoundingClientRect();
-    const viewportWidth = activeWindow.innerWidth;
-    const viewportHeight = activeWindow.innerHeight;
+    const viewportWidth = anchorEl.ownerDocument.defaultView!.innerWidth;
+    const viewportHeight = anchorEl.ownerDocument.defaultView!.innerHeight;
 
     // Default position: below the anchor
     let left = rect.left;
@@ -127,13 +127,13 @@ export class FolderSelectorPopup {
     // Check if popup would overflow bottom edge
     const popupHeight = 200; // Approximate max height
     if (top + popupHeight > viewportHeight - 16) {
-      top = rect.top - 4; // Position above instead
+      top = Math.max(16, rect.top - popupHeight - 4); // Position above instead
       popup.addClass("rss-folder-selector-popup-above");
     }
 
     // On mobile, CSS controls the popup's horizontal sheet layout while the
     // inline top keeps it anchored to the button. Desktop uses both offsets.
-    const isMobile = activeWindow.matchMedia("(max-width: 600px)").matches;
+    const isMobile = anchorEl.ownerDocument.defaultView!.matchMedia("(max-width: 600px)").matches;
     if (isMobile) {
       popup.style.removeProperty("left");
       popup.style.top = `${top}px`;
@@ -339,22 +339,6 @@ export class FolderSelectorPopup {
    * Attaches event listeners for user interaction
    */
   private attachEventListeners(): void {
-    // Swallow clicks on this popup's own contents while inert (a modal it
-    // opened, e.g. create-folder, is on top of it). Registered in the
-    // capture phase directly on popupEl so it runs before any individual
-    // item's own click listener — one guard instead of threading an
-    // isInert check through every item handler.
-    this.popupEl.addEventListener(
-      "click",
-      (e) => {
-        if (this.isInert) {
-          e.stopPropagation();
-          e.preventDefault();
-        }
-      },
-      true,
-    );
-
     // Input filtering with validation — skip in list-only mode
     if (!this.listOnly && this.inputEl) {
       this.inputEl.addEventListener("input", () => {
@@ -386,14 +370,14 @@ export class FolderSelectorPopup {
       }
     };
     window.setTimeout(() => {
-      activeDocument.addEventListener("click", this.clickOutsideHandler);
+      if (!this.isDestroyed) this.ownerDocument.addEventListener("click", this.clickOutsideHandler);
     }, 0);
 
     // Keyboard navigation
     this.keydownHandler = (e: KeyboardEvent) => {
       this.handleKeydown(e);
     };
-    activeDocument.addEventListener("keydown", this.keydownHandler);
+    this.ownerDocument.addEventListener("keydown", this.keydownHandler, true);
   }
 
   /**
@@ -418,7 +402,7 @@ export class FolderSelectorPopup {
    * Handles keyboard navigation
    */
   private handleKeydown(e: KeyboardEvent): void {
-    if (this.isDestroyed || this.isInert) return;
+    if (this.isDestroyed) return;
 
     const items = this.listEl.querySelectorAll(".rss-folder-selector-item");
     const itemCount = items.length;
@@ -488,6 +472,7 @@ export class FolderSelectorPopup {
 
       case "Escape":
         e.preventDefault();
+        e.stopImmediatePropagation();
         this.close();
         break;
 
@@ -535,45 +520,14 @@ export class FolderSelectorPopup {
       title: "Create new folder",
       existingNames: this.folders,
       onSubmit: (folderName) => {
-        this.selectFolder(folderName);
+        this.onSelect(folderName);
       },
-      onClose: () => {
-        this.setInert(false);
-      },
+
     });
 
-    // The modal renders outside popupEl's own DOM subtree, so any click
-    // inside it — typing, hitting OK, even Cancel — would otherwise bubble
-    // all the way up to document and trip this popup's outside-click
-    // handler, closing it out from under the modal. Stop that bubbling one
-    // step up from the click, on the modal's own container, in the BUBBLE
-    // phase — that runs *after* the target's own listener (okButton's
-    // submit, cancelButton's close), so the modal still behaves normally;
-    // it just never climbs any higher than its own container. (A
-    // capture-phase listener on document would run before the target's own
-    // handler and silently swallow every click in the modal instead —
-    // learned that one the hard way.)
-    modal.containerEl.addEventListener("click", (e) => {
-      e.stopPropagation();
-    });
-
-    // A real Obsidian Modal normally blocks the rest of the page via its own
-    // backdrop, but this popup's z-index is set high enough to float above
-    // feed cards and other page chrome — high enough, it turns out, to float
-    // above the modal's backdrop too. Make the popup itself inert for as
-    // long as the modal is open so its folder list can't be clicked through.
-    this.setInert(true);
+    this.close();
 
     modal.open();
-  }
-
-  /**
-   * Toggles whether this popup's own contents can be interacted with —
-   * used while a modal it opened (e.g. create-folder) is on top of it.
-   */
-  private setInert(inert: boolean): void {
-    this.isInert = inert;
-    this.popupEl.toggleClass("rss-folder-selector-popup-inert", inert);
   }
 
   /**
@@ -595,8 +549,8 @@ export class FolderSelectorPopup {
     if (this.isDestroyed) return;
     this.isDestroyed = true;
 
-    activeDocument.removeEventListener("click", this.clickOutsideHandler);
-    activeDocument.removeEventListener("keydown", this.keydownHandler);
+    this.ownerDocument.removeEventListener("click", this.clickOutsideHandler);
+    this.ownerDocument.removeEventListener("keydown", this.keydownHandler, true);
     this.popupEl.remove();
     this.onClose?.();
   }

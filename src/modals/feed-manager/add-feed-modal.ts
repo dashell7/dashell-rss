@@ -699,6 +699,7 @@ export class AddFeedModal extends Modal {
     const availableTags: Tag[] = this.plugin?.settings?.availableTags ?? [];
 
     addTagMultiSelectControl({
+      tagAppearanceSettings: this.plugin?.settings,
       setting: autoTagSetting,
       availableTags,
       selectedTagNames: this.customTags,

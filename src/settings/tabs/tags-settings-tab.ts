@@ -9,8 +9,10 @@ import { Notice, Setting } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
 import { DEFAULT_SETTINGS } from "../../types/types";
-import { DEFAULT_TAG_COLOR } from "../../utils/tag-colors";
-import { updateTagInSettings } from "../../utils/tag-utils";
+import { applyTagAppearance } from "../../utils/tag-colors";
+import { showEditTagModal } from "../../utils/tag-utils";
+import { deleteTagFromSettings } from "../../utils/tag-settings";
+import { renderTagDefaultsControl } from "./tag-defaults-control";
 
 interface AutoTagSettingConfig {
   name: string;
@@ -24,7 +26,7 @@ export function renderTagsSettingsTab(
   containerEl: HTMLElement,
   plugin: RssDashboardPlugin,
   onRefresh: () => void,
-): void {
+): () => void {
   // Auto Tagging settings
   new Setting(containerEl).setName("Auto tagging").setHeading();
 
@@ -94,6 +96,7 @@ export function renderTagsSettingsTab(
       .setDesc(autoTagSetting.description);
 
     addTagMultiSelectControl({
+      tagAppearanceSettings: plugin.settings,
       setting,
       availableTags: plugin.settings.availableTags ?? [],
       selectedTagNames: autoTagSetting.getSelectedTagNames(),
@@ -129,6 +132,8 @@ export function renderTagsSettingsTab(
       });
     });
 
+  const cleanup = renderTagDefaultsControl(containerEl, plugin);
+
   // Tags settings
   new Setting(containerEl).setName("Tags").setHeading();
 
@@ -140,56 +145,25 @@ export function renderTagsSettingsTab(
     const tag = plugin.settings.availableTags[i];
     if (!tag) continue;
 
-    new Setting(tagsContainer)
-      .setName(tag.name)
-      .addColorPicker((colorPicker) =>
-        colorPicker.setValue(tag.color).onChange(async (value) => {
-          updateTagInSettings(plugin.settings, tag, { color: value });
-          await plugin.saveSettings();
-          await plugin.refreshOpenTagColorViews();
-          plugin.app.workspace.trigger("rss-dashboard:tags-mutated");
-        }),
-      )
-      .addButton((button) =>
-        button
-          .setIcon("trash")
-          .setTooltip("Delete tag")
-          .onClick(async () => {
-            plugin.settings.availableTags.splice(i, 1);
-            await plugin.saveSettings();
-            onRefresh();
-          }),
-      );
-  }
-
-  new Setting(containerEl).setName("Add new tag").setHeading();
-
-  const newTagContainer = containerEl.createDiv();
-
-  const tagNameSetting = new Setting(newTagContainer)
-    .setName("Tag name")
-    .addText((text) => text.setPlaceholder("Enter tag name"));
-
-  const tagColorSetting = new Setting(newTagContainer)
-    .setName("Tag color")
-    .addColorPicker((colorPicker) => colorPicker.setValue(DEFAULT_TAG_COLOR));
-
-  new Setting(newTagContainer).addButton((button) =>
-    button.setButtonText("Add tag").onClick(async () => {
-      const nameInput = tagNameSetting.components[0] as unknown as {
-        inputEl: HTMLInputElement;
-      };
-      const name = nameInput.inputEl.value;
-      const colorPicker = tagColorSetting.components[0] as unknown as {
-        getValue: () => string;
-      };
-      const color = colorPicker.getValue();
-
-      if (!name) return;
-
-      plugin.settings.availableTags.push({ name, color });
+    const row = new Setting(tagsContainer).setName(tag.name);
+    const chip = row.descEl.createSpan({ cls: "rss-dashboard-tag-badge", text: tag.name });
+    applyTagAppearance(chip, tag, plugin.settings);
+    row.addButton(button => button.setButtonText("Edit").onClick(() => {
+      showEditTagModal({ app: plugin.app, settings: plugin.settings, tag, onSave: async () => {
+        await plugin.saveSettings();
+        await plugin.refreshOpenTagColorViews();
+        plugin.app.workspace.trigger("rss-dashboard:tags-mutated");
+        onRefresh();
+      }});
+    })).addButton(button => button.setIcon("trash").setTooltip("Delete tag").onClick(async () => {
+      deleteTagFromSettings(plugin.settings, tag.name);
       await plugin.saveSettings();
       onRefresh();
-    }),
-  );
+    }));
+  }
+  new Setting(containerEl).setName("Add new tag").addButton(button => button.setButtonText("Add tag").onClick(() => {
+    showEditTagModal({ app: plugin.app, settings: plugin.settings, tag: { name: "" }, isNew: true,
+      onSave: async () => { await plugin.saveSettings(); onRefresh(); } });
+  }));
+  return cleanup;
 }

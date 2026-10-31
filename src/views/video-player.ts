@@ -1,3 +1,5 @@
+import { sanitizeAndAppendHtml } from "../utils/safe-html";
+import { twitchChannelFor, twitchVodIdFor, twitchLivePlayerSourceUrl, twitchPlayerSourceUrl, twitchChannelWatchUrl, twitchVodWatchUrl, TWITCH_PLAYER_ALLOW } from "../utils/twitch-embed";
 import { Notice, Setting, setIcon } from "obsidian";
 import { FeedItem } from "../types/types";
 import { MediaService } from "../services/media-service";
@@ -26,6 +28,7 @@ export class VideoPlayer {
   ) => void;
   private relatedVideos: FeedItem[] = [];
   private messageHandler: ((event: MessageEvent) => void) | null = null;
+  private seekTimer: number | null = null;
   private playStartTime: number | null = null;
   private videoDuration: number | null = null;
   private useFirstSeenDateFallback: boolean;
@@ -41,6 +44,7 @@ export class VideoPlayer {
     ) => void,
     progressTrackingEnabled = true,
     useFirstSeenDateFallback = false,
+    private readonly focusMode = false,
   ) {
     this.container = container;
     this.onVideoSelect = onVideoSelect;
@@ -56,13 +60,18 @@ export class VideoPlayer {
   }
 
   loadVideo(item: FeedItem): void {
-    if (!item.videoId) {
+    if (!item.videoId && !twitchChannelFor(item) && !twitchVodIdFor(item)) {
       new Notice("No video id provided");
       console.debug("[Stub Notice]", "No video ID provided");
       return;
     }
 
     try {
+      this.flushProgress();
+      this.clearPendingSeek();
+      this.stopTracking();
+      this.playStartTime = null;
+      this.videoDuration = null;
       this.currentItem = item;
       this.lastTrackedPosition = item.playbackProgress?.position ?? null;
       this.render();
@@ -74,8 +83,17 @@ export class VideoPlayer {
   }
 
   private render(): void {
-    if (!this.currentItem || !this.currentItem.videoId) return;
-    const embed = MediaService.buildYouTubeEmbed(this.currentItem.videoId);
+    if (!this.currentItem) return;
+    const channel = twitchChannelFor(this.currentItem);
+    const vod = twitchVodIdFor(this.currentItem);
+    const twitch = Boolean(channel || vod);
+    if (!this.currentItem.videoId && !twitch) return;
+    const embed = twitch ? {
+      embedUrl: channel ? twitchLivePlayerSourceUrl(channel) : twitchPlayerSourceUrl(vod!, { autoplay: true }),
+      watchUrl: channel ? twitchChannelWatchUrl(channel) : twitchVodWatchUrl(vod!),
+      allow: TWITCH_PLAYER_ALLOW,
+      referrerPolicy: "strict-origin-when-cross-origin",
+    } : MediaService.buildYouTubeEmbed(this.currentItem.videoId!);
 
     this.container.empty();
     this.playerEl = this.container.createDiv({ cls: "rss-video-player" });
@@ -94,7 +112,8 @@ export class VideoPlayer {
 
     videoContainer.appendChild(this.iframeEl);
 
-    this.initPlayer(iframeId);
+    if (!twitch) this.initPlayer(iframeId);
+    if (this.focusMode) return;
 
     const details = this.playerEl.createDiv({ cls: "rss-video-details" });
     const titleSetting = new Setting(details)
@@ -116,21 +135,7 @@ export class VideoPlayer {
       const descriptionContainer = details.createDiv({
         cls: "rss-video-description",
       });
-      const sanitizeAndAppend = (html: string, target: HTMLElement): void => {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, "text/html");
-        doc.querySelectorAll("script").forEach((s) => s.remove());
-        doc.querySelectorAll("a").forEach((link) => {
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-        });
-        const fragment = target.win.createFragment();
-        while (doc.body.firstChild) {
-          fragment.appendChild(doc.body.firstChild);
-        }
-        target.appendChild(fragment);
-      };
-      sanitizeAndAppend(this.currentItem.description, descriptionContainer);
+      sanitizeAndAppendHtml(descriptionContainer, this.currentItem.description, { mode: "rich" });
     }
 
     const linksContainer = this.playerEl.createDiv({ cls: "rss-video-links" });
@@ -143,9 +148,10 @@ export class VideoPlayer {
     const youtubeIcon = youtubeButton.createSpan({
       cls: "rss-video-youtube-button-icon",
     });
-    setIcon(youtubeIcon, "youtube");
-    youtubeButton.createSpan({ text: "Watch on YouTube" });
+    setIcon(youtubeIcon, twitch ? "twitch" : "youtube");
+    youtubeButton.createSpan({ text: twitch ? "Watch on Twitch" : "Watch on YouTube" });
 
+    if (twitch) return;
     const tosLink = linksContainer.createEl("a", {
       cls: "rss-video-tos-link",
       href: "https://www.youtube.com/t/terms",
@@ -183,6 +189,7 @@ export class VideoPlayer {
         return;
       }
 
+      if (!this.currentItem?.videoId || event.source !== this.iframeEl?.contentWindow) return;
       try {
         let parsedData: unknown;
         if (typeof event.data === "string") {
@@ -213,19 +220,7 @@ export class VideoPlayer {
           payload.info &&
           typeof payload.info === "object"
         ) {
-          const info = payload.info as Record<string, unknown>;
-          if (typeof info.duration === "number") {
-            this.videoDuration = info.duration;
-          }
-          if (typeof info.currentTime === "number") {
-            this.lastTrackedPosition = info.currentTime;
-            if (this.playStartTime !== null) {
-              this.playStartTime = Date.now();
-            }
-          }
-          if (typeof info.playerState === "number") {
-            this.handleStateChange(info.playerState);
-          }
+          this.acceptPlayerInfo(payload.info as Record<string, unknown>);
         }
       } catch {
         // Parse/JSON error
@@ -233,6 +228,15 @@ export class VideoPlayer {
     };
 
     window.addEventListener("message", this.messageHandler);
+  }
+
+  private acceptPlayerInfo(info: Record<string, unknown>): void {
+    if (typeof info.duration === "number") this.videoDuration = info.duration;
+    if (typeof info.currentTime === "number") {
+      this.lastTrackedPosition = info.currentTime;
+      if (this.playStartTime !== null) this.playStartTime = Date.now();
+    }
+    if (typeof info.playerState === "number") this.handleStateChange(info.playerState);
   }
 
   private handlePlayerReady(): void {
@@ -255,9 +259,12 @@ export class VideoPlayer {
       this.progressTrackingEnabled &&
       this.currentItem?.playbackProgress?.position
     ) {
-      window.setTimeout(() => {
+      const item = this.currentItem;
+      this.seekTimer = window.setTimeout(() => {
+        this.seekTimer = null;
+        if (this.currentItem !== item) return;
         this.sendCommand("seekTo", [
-          this.currentItem!.playbackProgress!.position,
+          item.playbackProgress!.position,
           true,
         ]);
       }, 1000);
@@ -299,7 +306,7 @@ export class VideoPlayer {
 
   private saveProgress(flush = false): void {
     if (!this.progressTrackingEnabled) return;
-    if (!this.currentItem || !this.onPlaybackProgress) return;
+    if (!this.currentItem?.videoId || !this.onPlaybackProgress) return;
 
     try {
       let position = this.lastTrackedPosition ?? 0;
@@ -410,7 +417,13 @@ export class VideoPlayer {
     }
   }
 
+  private clearPendingSeek(): void {
+    if (this.seekTimer !== null) window.clearTimeout(this.seekTimer);
+    this.seekTimer = null;
+  }
+
   destroy(): void {
+    this.clearPendingSeek();
     this.stopTracking();
     this.flushProgress();
     if (this.messageHandler) {

@@ -1,3 +1,4 @@
+import { parseTwitchChannel, parseTwitchVodId } from "./twitch-embed";
 import type { FeedItem } from "../types/types";
 import { bilibiliEmbedUrl } from "./video-embed";
 
@@ -10,7 +11,7 @@ const KNOWN_VIDEO_ROUTE_PATTERNS = [
 
 export function isKnownVideoUrl(url: string | undefined): boolean {
   if (!url) return false;
-  return Boolean(bilibiliEmbedUrl(url)) || KNOWN_VIDEO_ROUTE_PATTERNS.some((pattern) => pattern.test(url));
+  return Boolean(parseTwitchChannel(url) || parseTwitchVodId(url) || bilibiliEmbedUrl(url)) || KNOWN_VIDEO_ROUTE_PATTERNS.some((pattern) => pattern.test(url));
 }
 
 export function isLikelyVideoItem(item: FeedItem): boolean {

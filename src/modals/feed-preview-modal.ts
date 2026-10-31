@@ -15,6 +15,7 @@ interface PreviewArticle {
 export class FeedPreviewModal extends Modal {
     private feed: FeedMetadata;
     private articles: PreviewArticle[] = [];
+    private loadGeneration = 0;
     private isLoading = true;
     private error: string | null = null;
 
@@ -83,22 +84,51 @@ export class FeedPreviewModal extends Modal {
     }
 
     private async loadFeedPreview(): Promise<void> {
+        const generation = ++this.loadGeneration;
         try {
             this.isLoading = true;
             this.error = null;
+            this.contentEl.querySelectorAll(":scope > .feed-preview-error, :scope > .feed-preview-content, :scope > .feed-preview-empty").forEach(el => el.remove());
 
             const xmlString = await fetchFeedXml(this.feed.url, this.corsProxyEnabled);
+            if (generation !== this.loadGeneration) return;
             this.articles = this.parseFeedXml(xmlString);
             
             this.renderContent();
         } catch (error) {
+            if (generation !== this.loadGeneration) return;
             
             this.error = error instanceof Error ? error.message : 'Unknown error occurred';
             this.renderError();
         } finally {
-            this.isLoading = false;
+            if (generation === this.loadGeneration) this.isLoading = false;
         }
     }
+
+  private getRssItemImage(item: Element, description: string): string {
+    const findChild = (tagName: string): Element | undefined =>
+      Array.from(item.children).find((el) => el.tagName === tagName);
+
+    const content = findChild("content:encoded")?.textContent || description;
+    const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
+    if (imgMatch?.[1]) return imgMatch[1];
+
+    // A media:content without medium or type is treated as an image.
+    const media = findChild("media:content");
+    let mediaUrl = "";
+    if (media) {
+      const medium = media.getAttribute("medium");
+      const type = media.getAttribute("type");
+      const isImage = medium
+        ? medium === "image"
+        : !type || type.startsWith("image/");
+      if (isImage) mediaUrl = media.getAttribute("url") || "";
+    }
+    if (mediaUrl) return mediaUrl;
+
+    const enclosure = item.querySelector(':scope > enclosure[type^="image"]');
+    return enclosure?.getAttribute("url") || "";
+  }
 
     private parseFeedXml(xmlString: string): PreviewArticle[] {
         try {
@@ -132,27 +162,7 @@ export class FeedPreviewModal extends Modal {
                         "";
                     
                     
-                    let image = '';
-                    const content =
-                        item.querySelector(":scope > content\\:encoded")?.textContent || description;
-                    const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
-                    if (imgMatch?.[1]) {
-                        image = imgMatch[1];
-                    } else {
-                        
-                        const mediaContent = item.querySelector(":scope > media\\:content");
-                        if (mediaContent) {
-                            const mediaUrl = mediaContent.getAttribute('url');
-                            if (mediaUrl) {
-                                image = mediaUrl;
-                            }
-                        } else {
-                            const enclosure = item.querySelector(':scope > enclosure[type^="image"]');
-                            if (enclosure) {
-                                image = enclosure.getAttribute('url') || '';
-                            }
-                        }
-                    }
+                    const image = this.getRssItemImage(item, description);
 
                     articles.push({
                         title,
@@ -322,6 +332,7 @@ export class FeedPreviewModal extends Modal {
     }
 
     onClose() {
+        this.loadGeneration += 1;
         this.contentEl.empty();
     }
 } 

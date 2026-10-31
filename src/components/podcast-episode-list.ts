@@ -1,10 +1,12 @@
-import type { FeedItem } from "../types/types";
+import { applyTagAppearance, DEFAULT_TAG_APPEARANCE_SETTINGS, type TagAppearanceSettings } from "../utils/tag-colors";
+import type { FeedItem, Tag } from "../types/types";
 import { resolveDisplayDate } from "../services/feed-parser/feed-retention";
 
 const EPISODE_BATCH_SIZE = 20;
 
 export interface PodcastEpisodeListOptions {
   episodes: FeedItem[];
+  tagAppearanceSettings?: TagAppearanceSettings;
   activeEpisodeGuid?: string;
   theme: string;
   sortOrder: "recent" | "oldest";
@@ -167,7 +169,7 @@ export class PodcastEpisodeList {
 
   private renderTags(
     meta: HTMLElement,
-    tags: Array<{ name: string; color?: string }> | undefined,
+    tags: Tag[] | undefined,
   ): void {
     if (!tags || tags.length === 0) return;
     const tagsWrap = meta.createDiv({ cls: "episode-list-row-tags" });
@@ -176,7 +178,7 @@ export class PodcastEpisodeList {
         cls: "episode-list-row-tag",
         text: tag.name,
       });
-      if (tag.color) tagEl.style.backgroundColor = tag.color;
+      applyTagAppearance(tagEl, tag, this.options.tagAppearanceSettings ?? DEFAULT_TAG_APPEARANCE_SETTINGS);
     });
     if (tags.length > 3) {
       const remainingTags = tags.slice(3).map((tag) => tag.name).join("\n");

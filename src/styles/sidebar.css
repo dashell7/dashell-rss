@@ -1525,3 +1525,5 @@ body .rss-folder-name-modal {
   white-space: nowrap;
   border: 0;
 }
+
+.rss-dashboard-tag-color-dot { background-color: var(--tag-color, var(--interactive-accent)); }
