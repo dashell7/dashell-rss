@@ -68,15 +68,17 @@ rules. Required hooks remain enabled.
 0 high/critical**. The existing lockfile/dependency tree was not changed.
 This is a current diagnostic result, not a reuse of October's finding counts.
 
-Host acceptance is blocked: required `F:/qiaomu-reader-english` and its old
-registered ID are absent. The current G: registration is not substituted,
-and another task is testing there. No vault notes, plugin assets/data or
-layout were touched. The independent installed VideoCaptioner candidate and
+On November 10 the user confirmed migration of the designated test vault to
+`G:/qiaomu-reader-english`, registered as `72af7e9296446625`; this supersedes
+the old F: path/ID. Host acceptance is pending exclusive access because
+another user task is actively preparing the Reader UX release there. No
+vault notes, plugin assets/data or layout were touched. The independent
+installed VideoCaptioner candidate and
 its dirty source were not replaced or integrated. No physical mobile/macOS,
 actual feed/provider, candidate cold start or sync acceptance is claimed.
 No push/remote merge, new CI, PR, Issue, tag, Release or directory submission
-occurred. Resume local candidate acceptance after the host instruction is
-resolved, with fresh backups and current remote state checks.
+occurred. Resume local candidate acceptance on G: after that release task
+finishes, with fresh backups and current remote state/version checks.
 
 Evidence: `C:/Users/zhangbo/AppData/Local/Temp/dashell-upstream-20261110/`:
 `rss-compare.json`, red/green/final test logs, full build/audit/architecture
