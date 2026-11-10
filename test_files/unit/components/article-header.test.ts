@@ -77,8 +77,12 @@ describe("ArticleHeader Component", () => {
     header.render();
 
     expect(container.textContent).toContain("Test Title");
-    const toggle = container.querySelector(".rss-dashboard-sidebar-toggle") as HTMLElement;
+    const toggle = container.querySelector(".rss-dashboard-sidebar-toggle") as HTMLButtonElement;
     expect(toggle).not.toBeNull();
+    expect(toggle.tagName).toBe("BUTTON");
+    expect(toggle.type).toBe("button");
+    toggle.focus();
+    expect(document.activeElement).toBe(toggle);
     toggle.click();
     expect(mockCallbacks.onToggleSidebar).toHaveBeenCalled();
   });
@@ -110,6 +114,34 @@ describe("ArticleHeader Component", () => {
     expect(
       document.querySelector(".rss-dashboard-filter-menu-portal"),
     ).toBeNull();
+  });
+
+  it("restores the raw search query to both controls without notifying a new search", () => {
+    const header = new ArticleHeader(
+      container,
+      settings,
+      "Title",
+      null,
+      null,
+      new Set(),
+      new Set(),
+      "OR",
+      mockCallbacks,
+    );
+    header.setSearchQuery(" Tech ");
+    header.render();
+    const searchValues = () => Array.from(
+      container.querySelectorAll<HTMLInputElement>(".rss-dashboard-article-search-input"),
+      input => input.value,
+    );
+    expect(searchValues()).toEqual([" Tech ", " Tech "]);
+
+    header.setSearchQuery(" AI ");
+    expect(searchValues()).toEqual([" AI ", " AI "]);
+    header.render();
+    expect(searchValues()).toEqual([" AI ", " AI "]);
+    expect(mockCallbacks.onSearch).not.toHaveBeenCalled();
+    header.destroy();
   });
 
   it("closes the mobile filter menu when clicking outside", async () => {

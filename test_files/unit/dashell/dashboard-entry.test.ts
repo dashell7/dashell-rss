@@ -17,7 +17,7 @@ vi.mock("../../../src/components/article-renderer", () => ({
 }));
 
 const views: RssDashboardView[] = [];
-async function surface() {
+async function surface(manyArticles: boolean | "empty" = false) {
   const app: App = App.createMock();
   app.workspace = {
     on: vi.fn(),
@@ -53,6 +53,13 @@ async function surface() {
       },
     ],
   }));
+  if (manyArticles === true) {
+    settings.allArticlesPageSize = 10;
+    settings.feeds[0].items = Array.from({ length: 25 }, (_, i) => ({
+      ...settings.feeds[0].items[0], guid: `search-${i}`, title: `Reading ${i + 1}`,
+    }));
+  }
+  if (manyArticles === "empty") settings.feeds = [];
   const plugin = {
     settings,
     dashellLearning: {
@@ -87,6 +94,43 @@ afterEach(async () => {
 });
 
 describe("Dashboard and reading page navigation", () => {
+  it("offers a direct first-feed action in the empty dashboard", async () => {
+    const { view } = await surface("empty");
+    const add = view.containerEl.querySelector<HTMLButtonElement>(".rss-dashboard-empty-state-button");
+    expect(add?.textContent).toBe("Add your first feed");
+    add!.click();
+    expect(document.querySelector(".rss-add-feed-modal")).not.toBeNull();
+  });
+  it("searches all scoped pages with case and whitespace normalization while keeping input focus", async () => {
+    const { view } = await surface(true);
+    const input = view.containerEl.querySelector<HTMLInputElement>(".rss-dashboard-article-search-input")!;
+    input.focus();
+    input.value = " Reading 25 ";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(view.containerEl.querySelectorAll(".rss-dashboard-article-card")).toHaveLength(1);
+    expect(view.containerEl.querySelector(".rss-dashboard-article-card")?.textContent).toContain("Reading 25");
+    expect(view.containerEl.querySelector(".rss-dashboard-pagination-wrapper")?.textContent).toContain("of 1");
+    expect(document.activeElement).toBe(input);
+    expect(input.value).toBe(" Reading 25 ");
+    expect(view.containerEl.querySelector(".rss-dashboard-viewing-filter-stats-text")?.textContent).toContain("Showing 1");
+  });
+
+  it("explains an empty search, clears in one action and keeps the query visible across feed changes", async () => {
+    const { view, settings } = await surface(true);
+    const input = view.containerEl.querySelector<HTMLInputElement>(".rss-dashboard-article-search-input")!;
+    input.value = "missing";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(view.containerEl.textContent).toContain("No matching articles");
+    view.containerEl.querySelector<HTMLElement>(`[data-feed-url="${settings.feeds[1].url}"]`)!.click();
+    expect(view.containerEl.querySelector<HTMLInputElement>(".rss-dashboard-article-search-input")?.value).toBe("missing");
+    const clear = view.containerEl.querySelector<HTMLButtonElement>(".rss-dashboard-search-status button")!;
+    expect(clear).not.toBeNull();
+    clear.click();
+    expect(view.containerEl.querySelectorAll(".rss-dashboard-article-card")).toHaveLength(1);
+    expect(view.containerEl.querySelector(".rss-dashboard-article-card")?.textContent).toContain("Second");
+    expect(view.containerEl.querySelector(".rss-dashboard-search-status")).toBeNull();
+  });
+
   it("opens the original dashboard even when a reading channel was previously remembered", async () => {
     const { view, home } = await surface();
     expect(home.hidden).toBe(false);

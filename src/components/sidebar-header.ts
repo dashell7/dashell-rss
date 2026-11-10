@@ -162,6 +162,8 @@ function buildSearchButton(
         searchInput.select();
         searchInput.scrollIntoView({ block: "nearest" });
       });
+    } else {
+      host.container.querySelector<HTMLElement>('[aria-label="Search"]')?.focus();
     }
   };
   host.iconActions.set("search", action);

@@ -180,6 +180,7 @@ export class Sidebar {
   private cachedFolderPaths: string[] | null = null;
   private isSearchExpanded = false;
   private searchQuery = "";
+  private searchTimeout: number | null = null;
   private isTagsExpanded = false;
   private isAddTagExpanded = false;
   private longPressTimer: number | null = null;
@@ -371,6 +372,7 @@ export class Sidebar {
   }
 
   public destroy(): void {
+    this.cancelPendingSearch();
     this.clearRefreshStatusDetails();
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
@@ -379,6 +381,7 @@ export class Sidebar {
   }
 
   public render(): void {
+    this.cancelPendingSearch();
     const scrollPosition = this.container.scrollTop;
 
     // Also preserve folders section scroll if it exists
@@ -2891,6 +2894,11 @@ export class Sidebar {
     if (action) action(e);
   }
 
+  private cancelPendingSearch(): void {
+    if (this.searchTimeout !== null) window.clearTimeout(this.searchTimeout);
+    this.searchTimeout = null;
+  }
+
   private renderSearchDock(parentEl: HTMLElement): void {
     if (!this.isSearchExpanded) return;
 
@@ -2911,16 +2919,12 @@ export class Sidebar {
       },
     });
 
-    let searchTimeout: number;
-
     attachInputClearButton(
       searchContainer,
       searchInput,
       () => {
         this.searchQuery = "";
-        if (searchTimeout) {
-          window.clearTimeout(searchTimeout);
-        }
+        this.cancelPendingSearch();
         this.filterFeedsAndFolders("");
         searchInput.focus();
       },
@@ -2946,11 +2950,10 @@ export class Sidebar {
       const rawQuery = (e.target as HTMLInputElement)?.value || "";
       this.searchQuery = rawQuery;
       const query = rawQuery.toLowerCase().trim();
-      if (searchTimeout) {
-        window.clearTimeout(searchTimeout);
-      }
-      searchTimeout = window.setTimeout(() => {
-        this.filterFeedsAndFolders(query);
+      this.cancelPendingSearch();
+      this.searchTimeout = window.setTimeout(() => {
+        this.searchTimeout = null;
+        if (this.isSearchExpanded) this.filterFeedsAndFolders(query);
       }, 150);
     });
 
@@ -3127,7 +3130,7 @@ export class Sidebar {
     });
   }
 
-  private showAddFeedModal(defaultFolder = "Uncategorized"): void {
+  public showAddFeedModal(defaultFolder = "Uncategorized"): void {
     new AddFeedModal(
       this.app,
       this.settings.folders,
