@@ -6,6 +6,8 @@
 
 ### Fixes
 
+- Local candidate adapting Qiaomu AI RSS 0.32.14: refreshing subscriptions also refreshes the open workbench body while retaining the current reading mode, scroll and status. Navigation, channel changes and disposal supersede old refreshes. Host acceptance and merge remain pending; see the [adaptation record](docs/DASHELL-QIAOMU-RSS-03214.md).
+
 - Adapted Qiaomu AI RSS 0.32.8 responsive controls: prevent tablet icon collapse, wrap narrow workbench actions, provide 44px mobile controls, and improve search and date legibility. The 0.32.9 speech fallback belongs to Qiaomu's separate speech system; see the [adaptation record](docs/DASHELL-QIAOMU-RSS-0329.md).
 
 ## 2.7.4 - 2026-10-27

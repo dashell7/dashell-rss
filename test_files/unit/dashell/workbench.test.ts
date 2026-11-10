@@ -57,6 +57,7 @@ function surface(
   const update = vi.fn(async (item: FeedItem, changes: Partial<FeedItem>) => {
     Object.assign(item, changes);
   });
+  const refresh = vi.fn(async (): Promise<void> => undefined);
   const view = new ReadingWorkbench({
     root,
     settings,
@@ -67,12 +68,12 @@ function surface(
     update,
     saveArticle: vi.fn(async () => undefined),
     selectArticle: vi.fn(),
-    refresh: vi.fn(async () => undefined),
+    refresh,
     manageFeeds: vi.fn(),
     openSettings: vi.fn(),
     savePreferences,
   });
-  return { root, view, items, settings, savePreferences, update };
+  return { root, view, items, settings, savePreferences, update, refresh };
 }
 
 afterEach(() => {
@@ -81,6 +82,53 @@ afterEach(() => {
 });
 
 describe("Qiaomu-style reading workbench", () => {
+  it("refreshes the open body from the latest item without recording another open or consuming later status", async () => {
+    const render = vi.fn(async (body: HTMLElement, item: FeedItem) => { body.createDiv({ text: item.content }); });
+    const { root, view, items, update, refresh } = surface(render);
+    await view.open(items[0]);
+    const openedAt = items[0].lastOpenedAt;
+    items[0].readLaterAt = 123;
+    root.dataset.rssRequestedMode = "translation";
+    root.querySelector<HTMLElement>(".rss-workbench-body")!.scrollTop = 165;
+    refresh.mockImplementation(async () => { items[0] = { ...items[0], content: "Refreshed local body." }; });
+    root.querySelector<HTMLButtonElement>('[aria-label="刷新订阅"]')!.click();
+    await vi.waitFor(() => expect(root.querySelector(".rss-workbench-body")?.textContent).toContain("Refreshed local body."));
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(items[0].lastOpenedAt).toBe(openedAt);
+    expect(items[0].readLaterAt).toBe(123);
+    expect(root.dataset.rssRequestedMode).toBe("translation");
+    expect(root.querySelector<HTMLElement>(".rss-workbench-body")!.scrollTop).toBe(165);
+    view.dispose();
+  });
+  it("keeps a newer article or channel when an earlier refresh finishes and sends only one refresh", async () => {
+    const { root, view, items, refresh } = surface();
+    await view.open(items[0]);
+    let finish!: () => void;
+    refresh.mockImplementation(() => new Promise<void>(resolve => { finish = resolve; }));
+    const button = root.querySelector<HTMLButtonElement>('[aria-label="刷新订阅"]')!;
+    button.click(); button.click(); expect(refresh).toHaveBeenCalledTimes(1);
+    await view.open(items[1]); finish();
+    await vi.waitFor(() => expect(button.disabled).toBe(false));
+    expect(root.querySelector(".rss-workbench-body")?.textContent).toContain("Article two");
+    button.click(); view.setChannel(items[2].feedUrl); await view.open(items[2]); finish();
+    await vi.waitFor(() => expect(button.disabled).toBe(false));
+    expect(root.querySelector(".rss-workbench-body")?.textContent).toContain("Article three");
+    view.dispose();
+  });
+  it("retains the current body on refresh failure and ignores completion after disposal", async () => {
+    const render = vi.fn(async (body: HTMLElement, item: FeedItem) => { body.createDiv({ text: item.title }); });
+    const { root, view, items, refresh } = surface(render);
+    await view.open(items[0]);
+    refresh.mockRejectedValueOnce(Error("offline"));
+    const button = root.querySelector<HTMLButtonElement>('[aria-label="刷新订阅"]')!;
+    button.click(); await vi.waitFor(() => expect(button.disabled).toBe(false));
+    expect(root.querySelector(".rss-workbench-body")?.textContent).toContain("Article one");
+    let finish!: () => void;
+    refresh.mockImplementation(() => new Promise<void>(resolve => { finish = resolve; }));
+    button.click(); view.dispose(); finish();
+    await vi.waitFor(() => expect(button.disabled).toBe(false));
+    expect(render).toHaveBeenCalledTimes(1);
+  });
   it("keeps icon and channel controls outside the tablet host's text-button padding rule", async () => {
     document.body.addClass("is-mobile", "is-tablet");
     const { root, view, items } = surface();

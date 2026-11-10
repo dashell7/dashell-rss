@@ -78,9 +78,8 @@ export class ReadingWorkbench {
     readerIcon(actions, "search", "搜索文章", () => this.toggleSearch());
     const refresh = readerIcon(actions, "refresh-cw", "刷新订阅", () => {
       refresh.disabled = true;
-      void this.run(options.refresh).finally(() => {
+      void this.run(() => this.refreshCurrent()).finally(() => {
         refresh.disabled = false;
-        this.refresh();
       });
     });
     this.filters = sidebar.createDiv({
@@ -250,6 +249,19 @@ export class ReadingWorkbench {
     applyWorkbenchFormat(this.options.root, this.options.settings.readerFormat);
     if (this.selected) this.renderToolbar();
   }
+  private async refreshCurrent(): Promise<void> {
+    const request = this.request;
+    const selectedId = this.selected ? entryId(this.selected) : null;
+    await this.options.refresh();
+    this.refresh();
+    if (this.closed || request !== this.request || !selectedId) return;
+    const latest = this.options.items().find(item => entryId(item) === selectedId);
+    if (!latest) return;
+    this.remember();
+    // A refreshed body retains the reading mode/offset and does not record
+    // another open, auto-mark read, or consume a newly added later flag.
+    await this.open(latest, true, true);
+  }
   private filtered(): FeedItem[] {
     const channel = this.prefs.channel;
     const feeds = this.options.feeds();
@@ -386,7 +398,11 @@ export class ReadingWorkbench {
     const next = items[index < 0 ? 0 : index + direction];
     if (next) { this.listWindow.scrollTo(entryId(next)); void this.open(next); }
   }
-  async open(item: FeedItem, restore = false): Promise<void> {
+  private async recordOpen(item: FeedItem): Promise<void> {
+    if (item.readLaterAt && this.state.filter === "later") this.laterSession.add(entryId(item));
+    await this.options.update(item, { lastOpenedAt: Date.now(), readLaterAt: undefined, ...(!item.read && this.options.settings.display.autoMarkReadOnOpen ? { read: true } : {}) });
+  }
+  async open(item: FeedItem, restore = false, refreshed = false): Promise<void> {
     if (this.closed) return;
     if (!restore) this.remember();
     const top = restore ? this.state.readerTop : 0;
@@ -413,8 +429,7 @@ export class ReadingWorkbench {
     });
     body.addEventListener("scroll", () => this.scheduleSave());
     try {
-      if (item.readLaterAt && this.state.filter === "later") this.laterSession.add(entryId(item));
-      await this.options.update(item, { lastOpenedAt: Date.now(), readLaterAt: undefined, ...(!item.read && this.options.settings.display.autoMarkReadOnOpen ? { read: true } : {}) });
+      if (!refreshed) await this.recordOpen(item);
       if (this.closed || request !== this.request) return;
       body.empty();
       const cleanup = await this.options.renderArticle(body, item);
@@ -442,7 +457,7 @@ export class ReadingWorkbench {
       body
         .createEl("button", { text: "重试" })
         .addEventListener("click", () => {
-          void this.open(item);
+          void this.open(item, refreshed, refreshed);
         });
     }
   }
