@@ -199,8 +199,8 @@
   font-weight: 600;
 }
 
-.add-feed-status.status-error {
-  color: var(--rss-color-status-error);
+.rss-add-feed-modal .add-feed-status.status-error {
+  color: var(--text-error);
   font-weight: 600;
 }
 

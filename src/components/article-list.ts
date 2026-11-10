@@ -41,6 +41,7 @@ interface ArticleListCallbacks {
   onToggleViewStyle: (style: "list" | "card" | "feed") => void;
   onRefreshFeeds: () => Promise<void>;
   onSearch: (query: string) => void;
+  onAddFeed?: () => void;
   onOpenViewFilters?: () => void;
   onOpenPerFeedSettings?: () => void;
 
@@ -483,6 +484,11 @@ export class ArticleList {
     this.emptyStateContext = context;
   }
 
+  public setSearchQuery(query: string): void {
+    this.articleSearchQuery = query;
+    this.header?.setSearchQuery(query);
+  }
+
   render(): void {
     if (this.disposed) return;
     this.container.style.setProperty(
@@ -633,7 +639,7 @@ export class ArticleList {
     // (pagination is rendered as a sibling to the articles list)
     this.container
       .querySelectorAll(
-        ".rss-dashboard-articles-list, .rss-dashboard-pagination-wrapper",
+        ".rss-dashboard-articles-list, .rss-dashboard-pagination-wrapper, .rss-dashboard-search-status",
       )
       .forEach((el) => el.remove());
     this.renderArticles();
@@ -1222,6 +1228,7 @@ export class ArticleList {
    * Filter articles by search query (client-side filtering by title)
    */
   private filterArticlesBySearch(query: string): void {
+    query = query.trim().toLowerCase();
     const articlesList = this.container.querySelector(
       ".rss-dashboard-articles-list",
     );
@@ -1247,7 +1254,58 @@ export class ArticleList {
     });
   }
 
+  private renderSearchStatus(): void {
+    const query = this.articleSearchQuery.trim();
+    if (query) {
+      const status = this.container.createDiv({ cls: "rss-dashboard-search-status" });
+      status.createSpan({
+        text: `${this.totalArticles} matching article${this.totalArticles === 1 ? "" : "s"} for “${query}” in this view`,
+        attr: { role: "status", "aria-live": "polite" },
+      });
+      const clear = status.createEl("button", { text: "Clear search", attr: { type: "button" } });
+      clear.addEventListener("click", () => {
+        this.setSearchQuery("");
+        this.callbacks.onSearch("");
+        this.container.querySelector<HTMLButtonElement>('button[aria-label="Menu"]')?.focus();
+      });
+    }
+  }
+
+  private renderFirstFeedAction(articlesList: HTMLElement): void {
+    if (!this.callbacks.onAddFeed || this.settings.feeds.length !== 0) return;
+    const empty = articlesList.querySelector<HTMLElement>(".rss-dashboard-empty-state");
+    const add = empty?.createEl("button", {
+      cls: "rss-dashboard-empty-state-button",
+      text: "Add your first feed",
+      attr: { type: "button" },
+    });
+    add?.addEventListener("click", this.callbacks.onAddFeed);
+  }
+
+  private renderEmptyArticles(articlesList: HTMLElement): void {
+    if (this.articleSearchQuery.trim()) {
+      const empty = articlesList.createDiv({ cls: "rss-dashboard-empty-state" });
+      empty.createEl("h2", { text: "No matching articles" });
+      empty.createEl("p", { text: "Try a different title or clear your search to see articles in this view." });
+      return;
+    }
+    const emptyState = new ArticleEmptyState();
+    const onAction =
+      this.emptyStateContext?.actionTarget === "per-feed-settings"
+        ? this.callbacks.onOpenPerFeedSettings
+        : this.emptyStateContext?.actionTarget === "view-filter"
+          ? this.callbacks.onOpenViewFilters
+          : undefined;
+    emptyState.render(
+      articlesList,
+      this.emptyStateContext ?? { type: "NoArticlesAtAll", unfilteredCount: 0 },
+      { onAction },
+    );
+    this.renderFirstFeedAction(articlesList);
+  }
+
   private renderArticles(): void {
+    this.renderSearchStatus();
     const renderPagination = (): void => {
       const paginationWrapper = this.container.createDiv({
         cls: "rss-dashboard-pagination-wrapper",
@@ -1309,21 +1367,7 @@ export class ArticleList {
     }
 
     if (this.articles.length === 0) {
-      const emptyState = new ArticleEmptyState();
-      const onAction =
-        this.emptyStateContext?.actionTarget === "per-feed-settings"
-          ? this.callbacks.onOpenPerFeedSettings
-          : this.emptyStateContext?.actionTarget === "view-filter"
-            ? this.callbacks.onOpenViewFilters
-            : undefined;
-      emptyState.render(
-        articlesList,
-        this.emptyStateContext ?? {
-          type: "NoArticlesAtAll",
-          unfilteredCount: 0,
-        },
-        { onAction },
-      );
+      this.renderEmptyArticles(articlesList);
       return;
     }
 

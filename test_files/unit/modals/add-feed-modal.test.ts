@@ -115,6 +115,74 @@ beforeEach(() => {
 });
 
 describe("AddFeedModal", () => {
+  it("explains that closing a pending addition leaves it running in the background", async () => {
+    let finish!: (value: boolean) => void;
+    const onAdd = vi.fn(() => new Promise<boolean>(resolve => { finish = resolve; }));
+    const onSave = vi.fn();
+    const modal = new AddFeedModal(createMockApp(), [], onAdd, onSave, "", undefined, "https://example.com/feed", "My feed");
+    modal.open();
+    const save = getButtonByText(modal.contentEl, "Save");
+    save.click();
+
+    expect(save.textContent).toBe("Adding feed…");
+    expect(save.disabled).toBe(true);
+    const status = modal.contentEl.querySelector<HTMLElement>(".add-feed-status")!;
+    expect(status.getAttribute("role")).toBe("status");
+    expect(status.getAttribute("aria-live")).toBe("polite");
+    expect(status.textContent).toContain("continue in the background");
+    expect(getTextInputBySettingName(modal.contentEl, "Feed URL").disabled).toBe(true);
+    const close = getButtonByText(modal.contentEl, "Close");
+    expect(close.disabled).toBe(false);
+    close.click();
+    expect(modal.containerEl.isConnected).toBe(false);
+    finish(true);
+    await flushPromises();
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it.each([false, new Error("Network unavailable")])("preserves the form and offers a retry after an addition fails: %s", async failure => {
+    const onAdd = vi.fn<OnAddFn>();
+    if (failure instanceof Error) onAdd.mockRejectedValueOnce(failure);
+    else onAdd.mockResolvedValueOnce(failure);
+    onAdd.mockResolvedValueOnce(true);
+    const onSave = vi.fn();
+    const modal = new AddFeedModal(createMockApp(), [], onAdd, onSave, "Reading", undefined, "https://example.com/feed", "My feed");
+    modal.open();
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(modal.containerEl.isConnected).toBe(true);
+    const status = modal.contentEl.querySelector<HTMLElement>(".add-feed-status")!;
+    expect(status.classList.contains("status-error")).toBe(true);
+    expect(status.textContent).toContain("try again");
+    if (failure instanceof Error) expect(status.textContent).toContain(failure.message);
+    expect(getTextInputBySettingName(modal.contentEl, "Feed URL").value).toBe("https://example.com/feed");
+    expect(getTextInputBySettingName(modal.contentEl, "Title").value).toBe("My feed");
+    expect(getTextInputBySettingName(modal.contentEl, "Folder").value).toBe("Reading");
+    expect(getTextInputBySettingName(modal.contentEl, "Feed URL").disabled).toBe(false);
+    expect(getButtonByText(modal.contentEl, "Cancel").disabled).toBe(false);
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+    expect(onAdd).toHaveBeenCalledTimes(2);
+    expect(onSave).toHaveBeenCalledOnce();
+    expect(modal.containerEl.isConnected).toBe(false);
+  });
+
+  it("keeps title input focused while confirming or cancelling Chinese composition", () => {
+    const modal = new AddFeedModal(createMockApp(), [], vi.fn(), vi.fn());
+    modal.open();
+    const title = getTextInputBySettingName(modal.contentEl, "Title");
+    title.focus();
+    title.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", isComposing: true }));
+    expect(document.activeElement).toBe(title);
+    title.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", isComposing: true }));
+    expect(modal.containerEl.isConnected).toBe(true);
+    title.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(document.activeElement).toBe(getTextInputBySettingName(modal.contentEl, "Folder"));
+    modal.close();
+  });
+
   it("requires a choice when a prefilled website title has multiple sources", async () => {
     const source = { url: "https://example.com/feed", text: "<rss><channel/></rss>" };
     const onAdd = vi.fn(async () => false);
@@ -157,8 +225,9 @@ describe("AddFeedModal", () => {
     modal.open();
     getButtonByText(modal.contentEl, "Load").click();
     await flushPromises();
-    getButtonByText(modal.contentEl, "Save").click();
-    getButtonByText(modal.contentEl, "Save").click();
+    const save = getButtonByText(modal.contentEl, "Save");
+    save.click();
+    save.click();
     expect(onAdd).toHaveBeenCalledTimes(1);
     expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ previewSource: source }));
     finish(false);

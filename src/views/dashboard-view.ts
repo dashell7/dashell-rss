@@ -124,6 +124,7 @@ export class RssDashboardView extends ItemView {
   private currentFeed: Feed | null = null;
   private selectedTags: string[] = [];
   private selectedArticle: FeedItem | null = null;
+  private articleSearchQuery = "";
   private tagsCollapsed = true;
   private collapsedFolders: string[] = [];
   private allArticlesPage = 1;
@@ -1096,9 +1097,8 @@ export class RssDashboardView extends ItemView {
           },
           onToggleViewStyle: this.handleToggleViewStyle.bind(this),
           onRefreshFeeds: this.handleRefreshFeeds.bind(this),
-          onSearch: (_q: string) => {
-            // State is handled by ArticleList locally, but we could sync it here if needed
-          },
+          onSearch: (query: string) => this.handleArticleSearch(query),
+          onAddFeed: () => this.sidebar.showAddFeedModal(),
           onOpenViewFilters: () => {
             this.openViewingFiltersMenu();
           },
@@ -1183,6 +1183,7 @@ export class RssDashboardView extends ItemView {
         }),
       );
 
+      this.articleList.setSearchQuery(this.articleSearchQuery);
       this.articleList.render();
 
       this.updateRefreshButtonText();
@@ -1395,7 +1396,8 @@ export class RssDashboardView extends ItemView {
     // ── Row 3: Viewing filters / collapse toggle ──────────────────────────────
     if (hasDashboardMultiFilterStats && this.dashboardMultiFilterCounts) {
       const hasActiveDashboardMultiFilters =
-        this.activeStatusFilters.size > 0 || this.activeTagFilters.size > 0;
+        this.activeStatusFilters.size > 0 || this.activeTagFilters.size > 0 ||
+        this.articleSearchQuery.trim().length > 0;
       const { shown, filteredOut, total } = this.dashboardMultiFilterCounts;
       const viewingFilterRow = subheaderContent.createDiv({
         cls: "rss-dashboard-filter-stats-row rss-dashboard-viewing-filter-stats-row",
@@ -1651,6 +1653,21 @@ export class RssDashboardView extends ItemView {
     return this.buildFilteredArticles();
   }
 
+  private handleArticleSearch(query: string): void {
+    this.articleSearchQuery = query;
+    this.setCurrentPageState(1);
+    const articles = this.getFilteredArticles();
+    const pageSize = this.getCurrentPageSize();
+    const pagination = computePagination({ totalItems: articles.length, pageSize, requestedPage: 1 });
+    this.articleList.setSearchQuery(query);
+    this.articleList.refilter(
+      new Set(this.activeStatusFilters), new Set(this.activeTagFilters), this.filterLogic,
+      articles.slice(pagination.startIdx, pagination.endIdx), pagination.currentPage,
+      pagination.totalPages, pageSize, articles.length,
+    );
+    this.refreshFilterStatusBarOnly();
+  }
+
   private buildFilteredArticles(): FeedItem[] {
     this.syncCurrentFeedReference();
     let articles = getFilteredArticleScope(this.getArticleScopeState());
@@ -1663,6 +1680,10 @@ export class RssDashboardView extends ItemView {
 
     // Apply filters (multi-filters, special folders, age, etc.)
     articles = articles.filter((item) => this.matchesFilters(item));
+    const query = this.articleSearchQuery.trim().toLowerCase();
+    if (query) {
+      articles = articles.filter((item) => item.title.toLowerCase().includes(query));
+    }
 
     if (this.settings.articleSort === "oldest") {
       articles.sort(
@@ -3173,12 +3194,13 @@ export class RssDashboardView extends ItemView {
   ): { shown: number; filteredOut: number; total: number } {
     let total = 0;
     let shown = 0;
+    const query = this.articleSearchQuery.trim().toLowerCase();
 
     for (const item of keywordFilteredArticles) {
       if (this.matchesFilters(item, { ignoreDashboardMultiFilters: true })) {
         total++;
       }
-      if (this.matchesFilters(item)) {
+      if (this.matchesFilters(item) && (!query || item.title.toLowerCase().includes(query))) {
         shown++;
       }
     }

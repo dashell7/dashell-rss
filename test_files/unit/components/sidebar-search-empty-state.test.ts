@@ -218,5 +218,44 @@ describe("Sidebar search empty state", () => {
     expect(container.querySelector(".rss-dashboard-search-input")).toBeNull();
     expect(emptyState()).toBeNull();
     expect(visibleFeedTitles().sort()).toEqual(["Cooking Daily", "Tech News"]);
+    expect(document.activeElement).toBe(container.querySelector('[aria-label="Search"]'));
+  });
+
+  it("keeps all feeds visible when search closes before its pending update", () => {
+    const input = openSearch();
+    input.value = "zzz-no-such-feed";
+    input.dispatchEvent(new Event("input"));
+
+    container.querySelector<HTMLElement>('[aria-label="Search"]')?.click();
+    vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+
+    expect(container.querySelector(".rss-dashboard-search-input")).toBeNull();
+    expect(emptyState()).toBeNull();
+    expect(visibleFeedTitles().sort()).toEqual(["Cooking Daily", "Tech News"]);
+  });
+
+  it("does not restore an old query after the rebuilt search is cleared", () => {
+    const input = openSearch();
+    input.value = "zzz-no-such-feed";
+    input.dispatchEvent(new Event("input"));
+
+    sidebar.render();
+    container.querySelector<HTMLButtonElement>(".rss-dashboard-search-clear")?.click();
+    vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+
+    expect(emptyState()).toBeNull();
+    expect(visibleFeedTitles().sort()).toEqual(["Cooking Daily", "Tech News"]);
+  });
+
+  it("stops pending search updates when the sidebar is destroyed", () => {
+    const input = openSearch();
+    input.value = "zzz-no-such-feed";
+    input.dispatchEvent(new Event("input"));
+
+    sidebar.destroy();
+    vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+
+    expect(emptyState()).toBeNull();
+    expect(visibleFeedTitles().sort()).toEqual(["Cooking Daily", "Tech News"]);
   });
 });

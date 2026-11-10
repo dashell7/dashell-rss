@@ -1,10 +1,14 @@
-## Unreleased
+## 2.7.5 - 2026-11-10
 
 ### Features
 
-- Selectively adapted RSS Dashboard 2.8.0-beta.2: inherited tag colors and palettes with staged defaults, page-wide cover fetching with cancellation, article title scaling, optional mobile panel swipes, Twitch routing and Bluesky post extraction. Saved notes now support longer UTF-8-safe filenames, GFM tables and template image deduplication; preview retry, folder popouts and media action states are improved. Dashell learning materials, shared transport and stable manifest 2.7.4 are preserved. See the [adaptation record](docs/DASHELL-RSS-DASHBOARD-280-BETA2.md).
+- Selectively adapted RSS Dashboard 2.8.0-beta.2: inherited tag colors and palettes with staged defaults, page-wide cover fetching with cancellation, article title scaling, optional mobile panel swipes, Twitch routing and Bluesky post extraction. Saved notes now support longer UTF-8-safe filenames, GFM tables and template image deduplication; preview retry, folder popouts and media action states are improved. Dashell learning materials and shared transport are preserved. See the [adaptation record](docs/DASHELL-RSS-DASHBOARD-280-BETA2.md).
 
 ### Fixes
+
+- Search article titles across all pages in the current view, normalize case and surrounding whitespace, and keep result counts and a one-click clear action visible. Add a first-feed action to the empty dashboard, restore keyboard activation for the sidebar toggle, cancel stale sidebar searches, and make subscription save progress, failures and retry explicit without interrupting Chinese input.
+- Keep narrow dashboard cover actions on one icon row with accessible names and 44px phone controls; use the host theme's error text color in the add-feed dialog.
+- Keep empty article and search messages across the full card grid, including dashboards with a custom column count.
 
 - Adapted Qiaomu AI RSS 0.32.8 responsive controls: prevent tablet icon collapse, wrap narrow workbench actions, provide 44px mobile controls, and improve search and date legibility. The 0.32.9 speech fallback belongs to Qiaomu's separate speech system; see the [adaptation record](docs/DASHELL-QIAOMU-RSS-0329.md).
 

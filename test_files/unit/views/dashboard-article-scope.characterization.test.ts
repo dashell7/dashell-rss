@@ -23,6 +23,7 @@ vi.mock("../../../src/utils/platform-utils", () => ({
 
 vi.mock("../../../src/components/article-list", () => ({
   ArticleList: class ArticleListMock {
+    setSearchQuery = vi.fn();
     constructor(...args: unknown[]) {
       articleListArgs = args;
     }
