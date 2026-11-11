@@ -1,4 +1,4 @@
-# RSS 0.32.14 selective adaptation — local candidate, 2026-11-10
+# RSS 0.32.14 selective adaptation — verified integration, 2026-11-11
 
 Source: Qiaomu AI RSS official tag `0.32.14`, commit
 `d076afcdacc8d51f48df27f50a82943649a099e5`, published
@@ -9,7 +9,10 @@ Unreleased main is not the adaptation source.
 Candidate branch `fix/rss-03214-sync` starts from Dashell's actual default
 `codex/dashell-rss-upstream-sync` at
 `c6833dbcce871059a02721f3c214c7c0e3ad4cfc`. Formal manifest/package and
-public Release remain **2.7.4**. The candidate is local and unmerged.
+public Release were **2.7.4** at that initial base. On November 11 the
+candidate merges actual default `d5bd15210bb48c8743d616244280e039f4df4fb5`
+and preserves formal **2.7.5**, its cross-page search/subscription recovery
+and all release changes. This daily sync creates no new Release.
 
 ## Selected change and owner
 
@@ -68,18 +71,38 @@ rules. Required hooks remain enabled.
 0 high/critical**. The existing lockfile/dependency tree was not changed.
 This is a current diagnostic result, not a reuse of October's finding counts.
 
-On November 10 the user confirmed migration of the designated test vault to
-`G:/qiaomu-reader-english`, registered as `72af7e9296446625`; this supersedes
-the old F: path/ID. Host acceptance is pending exclusive access because
-another user task is actively preparing the Reader UX release there. No
-vault notes, plugin assets/data or layout were touched. The independent
-installed VideoCaptioner candidate and
-its dirty source were not replaced or integrated. No physical mobile/macOS,
-actual feed/provider, candidate cold start or sync acceptance is claimed.
-No push/remote merge, new CI, PR, Issue, tag, Release or directory submission
-occurred. Resume local candidate acceptance on G: after that release task
-finishes, with fresh backups and current remote state/version checks.
+## November 11 integration acceptance
 
-Evidence: `C:/Users/zhangbo/AppData/Local/Temp/dashell-upstream-20261110/`:
-`rss-compare.json`, red/green/final test logs, full build/audit/architecture
-logs, `host-unavailable.json` and `assessment.md`.
+The designated migrated vault is `G:/qiaomu-reader-english`, registered
+`72af7e9296446625`. The prior Reader UX task completed; no other vault was
+used. Current installed RSS was verified byte for byte against public
+**2.7.5**, so it was not the historical VideoCaptioner candidate. Its
+independent source/candidate was not modified or integrated.
+
+After fresh backups, the combined candidate loaded in Windows Obsidian
+1.15.1. A real Dashboard workbench and renderer used an in-memory synthetic
+feed/article; refresh replaced old with new body, retained 90px scroll and
+original mode, and made no further open/read/later-status update. A second
+click made one request. A controlled translation renderer retained its
+mode. A rejected refresh kept the current body and re-enabled retry. No
+real subscription/network request or user feed update was made by fixtures.
+
+The combined full suite passed **347 files / 5518 tests** with coverage
+statements **75.21%**, branches **66.68%**, functions **73.97%**, lines
+**76.41%**. Full build, zero-warning lint, main/test TypeScript and all
+architecture/platform/CSS/document gates passed; hooks remain enabled.
+Dependencies and lockfile versions were not changed by this integration;
+only the inherited release root version advances to 2.7.5. November 10 audit
+results above remain historical, not a fresh November 11 audit.
+
+Original public assets and layout were restored. All **26 Markdown files
+and 63 plugin files** were byte-identical to this run's backup, with no QA
+notes or extra plugin files. Functional checks captured no errors. Restore
+captured ResizeObserver notifications and one Reader progress JSON
+verification warning; final idle preservation was verified, and diagnostics
+are retained. No physical mobile/macOS, candidate cold start, synchronization,
+real subscription/provider or speech acceptance is claimed.
+
+Evidence: `C:/Users/zhangbo/AppData/Local/Temp/dashell-upstream-20261111/`,
+including combined tests/build logs, host refresh and preservation JSON.
+The November 10 assessment and audit keep their original date.

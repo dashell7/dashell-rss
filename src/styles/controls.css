@@ -764,3 +764,69 @@
 .rss-dashboard-articles-header.is-narrow .rss-dashboard-sidebar-toggle {
   margin-right: 8px;
 }
+
+.rss-dashboard-articles .rss-dashboard-search-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 12px;
+  color: var(--text-normal);
+  background: var(--background-secondary);
+  border-radius: var(--radius-s, 6px);
+  overflow-wrap: anywhere;
+}
+
+.rss-dashboard-articles .rss-dashboard-search-status span {
+  min-width: 0;
+  flex: 1 1 180px;
+}
+
+.rss-dashboard-articles .rss-dashboard-search-status button,
+.rss-dashboard-articles-header .rss-dashboard-sidebar-toggle {
+  min-width: 32px;
+  flex-shrink: 0;
+}
+
+.rss-dashboard-articles .rss-dashboard-search-status button:focus-visible,
+.rss-dashboard-articles-header .rss-dashboard-sidebar-toggle:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.rss-dashboard-articles-header .rss-dashboard-fetch-all-covers {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.rss-dashboard-articles-header.is-narrow .rss-dashboard-cover-action-label {
+  display: none;
+}
+
+.rss-dashboard-articles-header.is-narrow .rss-dashboard-fetch-all-covers {
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+}
+
+@media (max-width: 768px) {
+  .rss-dashboard-articles-header .rss-dashboard-cover-action-label {
+    display: none;
+  }
+
+  .rss-dashboard-articles-header .rss-dashboard-fetch-all-covers,
+  .rss-dashboard-articles-header.is-narrow .rss-dashboard-fetch-all-covers,
+  .rss-dashboard-articles-header .rss-dashboard-sidebar-toggle,
+  .rss-dashboard-articles-header .rss-dashboard-mobile-filter-button,
+  .rss-dashboard-articles-header .rss-dashboard-hamburger-button {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    padding: 8px;
+  }
+}

@@ -195,6 +195,11 @@
   padding: 8px;
 }
 
+.rss-dashboard-articles-list.rss-dashboard-card-view > .rss-dashboard-empty-state {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
 .rss-dashboard-article-card {
   display: flex;
   flex-direction: column;

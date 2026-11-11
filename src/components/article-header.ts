@@ -95,7 +95,10 @@ export class ArticleHeader {
     button.disabled = state === "disabled" || state === "stopping";
     const text = state === "running" ? "Stop fetching covers" : state === "stopping" ? "Stopping cover fetch" : "Fetch all page covers";
     button.setAttribute("aria-label", text);
-    button.textContent = text;
+    setTooltip(button, text);
+    button.empty();
+    setIcon(button.createSpan({ cls: "rss-dashboard-cover-action-icon", attr: { "aria-hidden": "true" } }), state === "running" ? "square" : "image");
+    button.createSpan({ cls: "rss-dashboard-cover-action-label", text });
   }
 
   public updateFilters(
@@ -179,9 +182,9 @@ export class ArticleHeader {
     const leftSection = articlesHeader.createDiv({
       cls: "rss-dashboard-header-left",
     });
-    const sidebarToggle = leftSection.createDiv({
+    const sidebarToggle = leftSection.createEl("button", {
       cls: "rss-dashboard-sidebar-toggle clickable-icon",
-      attr: { "aria-label": "Toggle sidebar", role: "button", tabindex: "0" },
+      attr: { "aria-label": "Toggle sidebar", type: "button" },
     });
     setIcon(sidebarToggle, "sidebar");
     sidebarToggle.addEventListener("click", () =>
@@ -549,6 +552,10 @@ export class ArticleHeader {
       const maxLeft = activeWindow.innerWidth - pRect.width - margin;
       portal.style.left = `${Math.max(margin, Math.min(rect.left, maxLeft))}px`;
     });
+  }
+
+  public setSearchQuery(query: string): void {
+    this.syncSearch(query);
   }
 
   private syncSearch(val: string) {

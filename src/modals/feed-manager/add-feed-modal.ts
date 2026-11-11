@@ -409,6 +409,7 @@ export class AddFeedModal extends Modal {
           this.titleInput.select(),
         );
         this.titleInput.addEventListener("keydown", (e) => {
+          if (e.isComposing || e.key === "Process") return;
           if (e.key === "Enter") {
             this.folderInput?.focus();
           } else if (e.key === "Escape") {
@@ -430,6 +431,7 @@ export class AddFeedModal extends Modal {
     this.statusDiv = statusSetting.controlEl.createDiv({
       text: this.status,
       cls: "add-feed-status",
+      attr: { role: "status", "aria-live": "polite", "aria-atomic": "true" },
     });
 
     const folderSetting = new Setting(this.contentEl)
@@ -783,10 +785,8 @@ export class AddFeedModal extends Modal {
       }
 
       const finalFolder = this.folderInput?.value || this.folder;
-      this.saving = true;
-      saveBtn.disabled = true;
-      void (async () => {
-        const added = await this.onAdd({
+      void this.submitFeed(
+        {
           title: this.title,
           url: this.url,
           folder: finalFolder,
@@ -802,19 +802,65 @@ export class AddFeedModal extends Modal {
               ? this.feedEncoding
               : undefined,
           previewSource: this.previewSource,
-        }).catch(() => {
-          return false;
-        });
-
-        this.saving = false;
-        saveBtn.disabled = false;
-        if (added !== false && !this.closed) {
-          this.onSave();
-          this.close();
-        }
-      })();
+        },
+        saveBtn,
+        cancelBtn,
+      );
     };
     cancelBtn.onclick = () => this.close();
+  }
+
+  private async submitFeed(
+    request: AddFeedRequest,
+    saveBtn: HTMLButtonElement,
+    closeBtn: HTMLButtonElement,
+  ): Promise<void> {
+    this.saving = true;
+    const controls = Array.from(this.contentEl.querySelectorAll<
+      HTMLInputElement | HTMLButtonElement | HTMLSelectElement | HTMLTextAreaElement
+    >("input, button, select, textarea"))
+      .filter(control => control !== closeBtn)
+      .map(control => ({ control, disabled: control.disabled }));
+    for (const { control } of controls) control.disabled = true;
+    saveBtn.setText("Adding feed…");
+    saveBtn.setAttribute("aria-busy", "true");
+    closeBtn.setText("Close");
+    this.setSaveStatus(
+      "Adding feed… You can close this dialog; adding will continue in the background.",
+      "status-loading",
+    );
+
+    let added: boolean | void = false;
+    let errorMessage = "Could not add this feed. Check the URL or whether it is already subscribed, then try again.";
+    try {
+      added = await this.onAdd(request);
+    } catch (error) {
+      if (error instanceof Error && error.message) {
+        errorMessage = `Could not add this feed: ${error.message}. Please try again.`;
+      }
+    } finally {
+      this.saving = false;
+      if (!this.closed) {
+        for (const { control, disabled } of controls) control.disabled = disabled;
+        saveBtn.setText("Save");
+        saveBtn.removeAttribute("aria-busy");
+        closeBtn.setText("Cancel");
+      }
+    }
+    if (this.closed) return;
+    if (added === false) {
+      this.setSaveStatus(errorMessage, "status-error");
+      return;
+    }
+    this.onSave();
+    this.close();
+  }
+
+  private setSaveStatus(message: string, statusClass: string): void {
+    this.status = message;
+    this.statusDiv?.removeClass("status-loading", "status-error", "status-ok", "rss-dashboard-status-warning");
+    this.statusDiv?.addClass(statusClass);
+    this.statusDiv?.setText(message);
   }
 
   onClose() {
